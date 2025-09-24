@@ -1,4 +1,6 @@
+using System;
 using AssemblyChain.Core.Domain.Entities;
+using AssemblyChain.Core.Model;
 using Grasshopper.Kernel.Types;
 
 namespace AssemblyChain.Gh.Kernel
@@ -8,6 +10,9 @@ namespace AssemblyChain.Gh.Kernel
     /// </summary>
     public class AcGhAssemblyGoo : GH_Goo<Assembly>
     {
+        private AssemblyModel _cachedAssemblyModel;
+        private string _cachedAssemblyHash = string.Empty;
+
         public AcGhAssemblyGoo()
         {
         }
@@ -50,13 +55,43 @@ namespace AssemblyChain.Gh.Kernel
 
         public override bool CastTo<T>(ref T target)
         {
-            if (Value != null && typeof(T).IsAssignableFrom(typeof(Assembly)))
+            if (Value != null)
             {
-                target = (T)(object)Value;
-                return true;
+                if (typeof(T).IsAssignableFrom(typeof(Assembly)))
+                {
+                    target = (T)(object)Value;
+                    return true;
+                }
+
+                if (typeof(T).IsAssignableFrom(typeof(AssemblyModel)))
+                {
+                    var model = EnsureAssemblyModel();
+                    if (model != null)
+                    {
+                        target = (T)(object)model;
+                        return true;
+                    }
+                }
             }
 
             return base.CastTo(ref target);
+        }
+
+        private AssemblyModel EnsureAssemblyModel()
+        {
+            if (Value == null)
+            {
+                return null;
+            }
+
+            var model = AssemblyModelFactory.Create(Value);
+            if (!string.Equals(_cachedAssemblyHash, model.Hash, StringComparison.Ordinal))
+            {
+                _cachedAssemblyModel = model;
+                _cachedAssemblyHash = model.Hash;
+            }
+
+            return _cachedAssemblyModel ?? model;
         }
     }
 }
