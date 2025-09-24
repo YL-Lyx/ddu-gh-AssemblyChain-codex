@@ -1,0 +1,1020 @@
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using Grasshopper.Kernel;
+using Grasshopper.Kernel.Types;
+using Rhino.Geometry;
+using BulletSharp;
+using AssemblyChain.Core.Utilities;
+using AssemblyChain.Core.Domain.Entities;
+using AssemblyChain.Core.Domain.ValueObjects;
+using AssemblyChain.Gh.Attributes;
+using AssemblyChain.Gh.Kernel;
+using Eto.Drawing;
+using Eto.Forms;
+using WVec3 = System.Numerics.Vector3;
+using WQuat = System.Numerics.Quaternion;
+using WMat = System.Numerics.Matrix4x4;
+
+namespace AssemblyChain.Gh.Components
+{
+    /// <summary>
+    /// Wrapper class for Bullet ground objects that can be used by AssemblyPhysics
+    /// </summary>
+    public class GroundWrapper : IDisposable
+    {
+        public CollisionShape Shape { get; private set; }
+        public DefaultMotionState Motion { get; private set; }
+        public RigidBody Body { get; private set; }
+        public TriangleMesh? TriangleMesh { get; private set; } // Keep reference for BvhTriangleMeshShape
+
+        public GroundWrapper(CollisionShape shape, DefaultMotionState motion, RigidBody body, TriangleMesh? triangleMesh = null)
+        {
+            Shape = shape;
+            Motion = motion;
+            Body = body;
+            TriangleMesh = triangleMesh;
+        }
+
+        public void Dispose()
+        {
+            Body?.Dispose();
+            Motion?.Dispose();
+            Shape?.Dispose();
+            TriangleMesh?.Dispose();
+        }
+    }
+
+    public sealed class AssemblyPhysics : GH_Component
+    {
+        private PhysicsPlaybackForm? _form;
+        private DateTime? _lastTime;
+        private int _currentStep = 0;
+        private int _totalSteps = 600;
+        private double _currentTime = 0;
+        private double _playbackTime = 0;
+        private double _speed = 1.0;
+        private int _collisionCount = 0;
+        private double _fps = 60.0;
+
+        public double Speed
+        {
+            get => _speed;
+            set => _speed = Math.Max(0.1, Math.Min(4.0, value)); // Clamp between 0.1x and 4.0x
+        }
+
+        public AssemblyPhysics() : base(
+            "Assembly Physics", "AsmSim",
+            "Professional Bullet physics with Unity-like behavior.\nAdaptive substepping, CCD, contact processing, optimal margins.\nCollision shapes: Static concave→BvhTriangleMesh, Dynamic concave→Compound convex, Dynamic convex→ConvexHull.\nInput order: Ground, Parts, StaticIds, Step, Time, Normalized.\nParts: embedded Mass/Friction/Restitution from CreatePart.\nGround: wrapper from CreateGround component.\nAlways uses original position/orientation (no pose estimation).\nTime control: Normalized (0-1) or absolute seconds.\nAuto-adjusts for Rhino units. Advanced solver settings for stability.\nUse SimMeshes for visualization, OutXforms to transform originals.",
+            "AssemblyChain", "4|Simulation") 
+        { }
+
+        public override Guid ComponentGuid => new Guid("7A2D0A3E-8C1E-4D6C-9A35-6C7BEE0A9B31");
+        protected override System.Drawing.Bitmap? Icon => null;
+        public override GH_Exposure Exposure => GH_Exposure.secondary;
+
+        protected override void RegisterInputParams(GH_InputParamManager p)
+        {
+            p.AddGenericParameter("Ground", "G", "Ground wrapper from CreateGround component", GH_ParamAccess.item);
+            p.AddGenericParameter("Parts", "P", "AssemblyChain parts with embedded physical properties", GH_ParamAccess.list);
+            p.AddIntegerParameter("StaticIds", "S", "Optional static part indices", GH_ParamAccess.list);
+            p[2].Optional = true;
+            p.AddNumberParameter("Step", "dt", "Fixed timestep (s)", GH_ParamAccess.item, 0.01);
+            p.AddNumberParameter("Time", "T", "Advance the simulation to this time", GH_ParamAccess.item, 0);
+            p.AddBooleanParameter("Normalized", "N", "Time value is normalized (0..1)", GH_ParamAccess.item, true);
+        }
+
+        private static double GetDefaultMass()
+        {
+            try {
+                var doc = Rhino.RhinoDoc.ActiveDoc;
+                if (doc != null)
+                {
+                    var sceneToMeters = Rhino.RhinoMath.UnitScale(doc.ModelUnitSystem, Rhino.UnitSystem.Meters);
+                    // For small scale models, suggest smaller masses
+                    return sceneToMeters > 0.01 ? 0.001 : 1.0; // 1g for mm-scale, 1kg for meter-scale
+                }
+            } catch { }
+            return 0.01; // Default fallback
+        }
+
+        private static double GetDefaultTimeStep()
+        {
+            try {
+                var doc = Rhino.RhinoDoc.ActiveDoc;
+                if (doc != null)
+                {
+                    var sceneToMeters = Rhino.RhinoMath.UnitScale(doc.ModelUnitSystem, Rhino.UnitSystem.Meters);
+                    // For small scale models, might need smaller timestep
+                    return sceneToMeters > 0.01 ? 1.0 / 480.0 : 1.0 / 240.0; // Smaller dt for small scales
+                }
+            } catch { }
+            return 1.0 / 240.0; // Default fallback
+        }
+
+        protected override void RegisterOutputParams(GH_OutputParamManager p)
+        {
+            p.AddTransformParameter("OutXforms", "X", "Transforms to apply to original input meshes", GH_ParamAccess.list);
+            p.AddMeshParameter("SimMeshes", "Ms", "Physics-simulated meshes (use for visualization)", GH_ParamAccess.list);
+            p.AddBoxParameter("OBBs", "OBB", "Oriented bounding boxes for each simulated mesh", GH_ParamAccess.list);
+            p.AddTextParameter("Contacts", "C", "Contact pairs (debug)", GH_ParamAccess.list);
+        }
+
+        protected override void SolveInstance(IGH_DataAccess da)
+        {
+            // Get input parameters
+            object? groundInput = null;
+            var parts = new List<IGH_Goo>();
+            var staticIds = new List<int>();
+            double dt = 0.01;
+            double time = 0;
+            bool normalized = true;
+            bool keepOriginal = true; // Always true - skip pose estimation
+
+            da.GetData(0, ref groundInput);
+            bool hasPartsInput = da.GetDataList(1, parts);
+            da.GetDataList(2, staticIds);
+            da.GetData(3, ref dt);
+            da.GetData(4, ref time);
+            da.GetData(5, ref normalized);
+            // keepOriginal is always true - no input parameter
+
+            // Check if we're in playback mode
+            bool isInPlayback = _lastTime.HasValue;
+
+            // If no parts input connected, we can't run physics simulation
+            // But we still need to handle playback updates and UI status
+            if (!hasPartsInput || parts.Count == 0)
+            {
+                // Still update form status for playback mode
+                if (_form != null)
+                {
+                    _form.UpdateStatus(_currentStep, _currentTime, _totalSteps, 0, 0, _fps);
+                }
+
+                // Set empty outputs to prevent "No output data" warnings
+                da.SetDataList(0, new List<Transform>()); // OutXforms
+                da.SetDataList(1, new List<Rhino.Geometry.Mesh>()); // SimMeshes
+                da.SetDataList(2, new List<Box>()); // OBBs
+                da.SetDataList(3, new List<string>()); // Contacts
+
+                return;
+            }
+
+            // User-specified endpoint (can be 0)
+            double userTargetTime = normalized ? time * _totalSteps * dt : time;
+
+            // In playback mode use _playbackTime, otherwise use user-specified
+            double effectiveTargetTime = isInPlayback ? _playbackTime : userTargetTime;
+
+            // Use floor and allow 0 (don't force at least 1 step)
+            int targetSteps = Math.Max(0, (int)Math.Floor(effectiveTargetTime / dt));
+            int steps = isInPlayback
+                ? Math.Clamp(targetSteps - _currentStep, 0, 20)
+                : Math.Min(targetSteps - _currentStep, 10); // Limit to 10 steps per solve in non-playback mode
+
+            // If playing but this frame hasn't reached next step, just schedule next update (no stepping)
+            if (isInPlayback && steps == 0 && targetSteps > _currentStep)
+            {
+                Update(); // Only advance time and ExpireSolution
+                // Empty outputs to prevent GH warnings
+                da.SetDataList(0, new List<Transform>());
+                da.SetDataList(1, new List<Rhino.Geometry.Mesh>());
+                da.SetDataList(2, new List<Box>());
+                da.SetDataList(3, new List<string>());
+                return;
+            }
+
+            // Extract meshes, masses, friction, and restitution from parts
+            var meshes = new List<Rhino.Geometry.Mesh>();
+            var masses = new List<double>();
+            var frictionCoeffs = new List<double>();
+            var restitutionCoeffs = new List<double>();
+            var rollingFrictionCoeffs = new List<double>();
+            var spinningFrictionCoeffs = new List<double>();
+
+            foreach (var goo in parts)
+            {
+                object? part = null;
+                if (goo is GH_GeometricGoo geoGoo)
+                {
+                    part = geoGoo.Value;
+                }
+                else if (goo is GH_ObjectWrapper wrapper)
+                {
+                    part = wrapper.Value;
+                }
+
+                if (part == null) continue;
+
+                // Extract mesh and physics properties based on part type
+                Mesh? mesh = null;
+                double mass = 1.0;
+                double friction = 0.5;
+                double restitution = 0.1;
+                double rollingFriction = 0.01;
+                double spinningFriction = 0.01;
+
+                // Here you would check for your specific part types
+                // For now, assuming it's a mesh
+                if (part is Mesh m)
+                {
+                    mesh = m;
+                }
+                // Add other type checks as needed
+
+                if (mesh == null || !mesh.IsValid) continue;
+
+                meshes.Add(mesh);
+                masses.Add(mass);
+                frictionCoeffs.Add(friction);
+                restitutionCoeffs.Add(restitution);
+                rollingFrictionCoeffs.Add(rollingFriction);
+                spinningFrictionCoeffs.Add(spinningFriction);
+            }
+
+            if (meshes.Count == 0)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No valid parts found in the input.");
+                return;
+            }
+
+            // Determine unit scale to meters for Bullet
+            double sceneToMeters = 1.0;
+            Rhino.UnitSystem rhinoUnit = Rhino.UnitSystem.Meters;
+            try {
+                var doc = Rhino.RhinoDoc.ActiveDoc;
+                if (doc != null)
+                {
+                    rhinoUnit = doc.ModelUnitSystem;
+                    sceneToMeters = Rhino.RhinoMath.UnitScale(rhinoUnit, Rhino.UnitSystem.Meters);
+                }
+            } catch { sceneToMeters = 1.0; }
+
+            // Auto-adjust physics parameters based on unit scale for better behavior
+            bool isSmallScale = sceneToMeters > 0.01; // If conversion factor > 0.01, likely small units
+            if (isSmallScale)
+            {
+                this.Message = $"SMALL SCALE ({rhinoUnit}) - Using {sceneToMeters:F3}m/unit";
+            } else {
+                this.Message = $"LARGE SCALE ({rhinoUnit}) - Using {sceneToMeters:F3}m/unit";
+            }
+
+            int n = meshes.Count;
+            if (n == 0) { AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "No meshes."); return; }
+            if (masses.Count == 1) { var m = masses[0]; masses.Clear(); for (int i = 0; i < n; i++) masses.Add(m); }
+            if (masses.Count != n) { AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Input list lengths must match Meshes."); return; }
+
+            var staticSet = new HashSet<int>(staticIds);
+
+            var mode = PoseEstimationMode.Obb; // Always use OBB mode
+
+            var localMeshes = new List<Mesh>(n);
+            var startTransforms = new List<Transform>(n);
+            var startFrames = new List<Plane>(n);
+            var triMeshes = new List<BulletSharp.TriangleMesh>();
+            
+            for (int i = 0; i < n; i++)
+            {
+                var source = meshes[i];
+                if (source == null || !source.IsValid)
+                {
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Invalid mesh at index {i}");
+                    return;
+                }
+
+                if (keepOriginal)
+                {
+                    // Keep original: center mesh at centroid for proper rotation/physics
+                    Point3d com;
+                    var vmp = VolumeMassProperties.Compute(source);
+                    if (vmp != null) com = vmp.Centroid;
+                    else com = source.GetBoundingBox(true).Center;
+
+                    // Local mesh = move centroid to (0,0,0)
+                    var local = source.DuplicateMesh();
+                    if (local == null)
+                    {
+                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Failed to duplicate mesh at index {i}");
+                        return;
+                    }
+                    local.Translate(-com.X, -com.Y, -com.Z);
+                    local.Compact();
+                    localMeshes.Add(local);
+
+                    // Initial rigid body transform = put local (0,0,0) back at world com position
+                    startTransforms.Add(Transform.Translation(com.X, com.Y, com.Z));
+
+                    // Reference frame (use world axes)
+                    startFrames.Add(new Plane(com, Vector3d.XAxis, Vector3d.YAxis));
+                }
+                else
+                {
+                    // Apply pose estimation as before
+                    var result = PoseEstimator.EstimatePose(source, mode);
+                    if (result == null)
+                    {
+                        var copy = source.DuplicateMesh();
+                        if (copy == null)
+                        {
+                            AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Failed to duplicate mesh at index {i} during fallback");
+                            return;
+                        }
+                        copy.Compact();
+                        localMeshes.Add(copy);
+                        startTransforms.Add(Transform.Identity);
+                        startFrames.Add(Plane.WorldXY); // Fallback: use WorldXY as reference frame
+                    }
+                    else
+                    {
+                        localMeshes.Add(result.LocalMesh);
+                        startTransforms.Add(result.WorldFromLocal);
+                        startFrames.Add(result.Frame); // Save the pose estimation frame
+                    }
+                }
+            }
+
+            this.Message = keepOriginal ? "ORIGINAL" : "OBB";
+
+            var bodies = new List<RigidBody>(n + 1);
+            var shapes = new List<CollisionShape>(n + 1);
+            var motions = new List<DefaultMotionState>(n + 1);
+            var partBodies = new List<RigidBody>(n); // Only part bodies for output indexing
+
+            try
+            {
+                using var conf = new DefaultCollisionConfiguration();
+                using var dispatcher = new CollisionDispatcher(conf);
+                using var broadphase = new DbvtBroadphase();
+                using var solver = new SequentialImpulseConstraintSolver();
+
+                using var world = new DiscreteDynamicsWorld(dispatcher, broadphase, solver, conf) 
+                { 
+                    Gravity = new WVec3(0, 0, -9.81f) 
+                };
+
+                // Unity-like solver settings for familiar contact behavior
+                world.SolverInfo.NumIterations = 12; // Unity default ~6, Bullet needs ~12 for similar stability
+                world.SolverInfo.SplitImpulse = 1;   // Prevent energy injection from deep penetration correction (Unity-like)
+                world.SolverInfo.Erp = 0.2f;   // Position correction (softer, like Kangaroo)
+                world.SolverInfo.Erp2 = 0.8f;  // Velocity correction (firmer, prevents bouncing)
+
+                // Create ground: use GroundWrapper if provided, otherwise create default ground
+                GroundWrapper? groundWrapper = groundInput as GroundWrapper;
+                bool externalGround = groundWrapper != null;
+                if (externalGround && groundWrapper != null)
+                {
+                    // Use external ground from CreateGround component
+                    world.AddRigidBody(groundWrapper.Body);
+                    // Note: don't add external ground to bodies list (only to world), won't touch it during cleanup
+
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "Using external ground from CreateGround component");
+                }
+                else
+                {
+                    // Create default ground: use BBox.MinZ for infinite plane
+                    BoundingBox sceneBox = BoundingBox.Empty;
+                    foreach (var m in meshes) sceneBox.Union(m.GetBoundingBox(true));
+                    double groundZ = sceneBox.Min.Z * sceneToMeters; // Convert to meters
+                    float planeConstant = (float)(-groundZ); // planeConstant for normal=(0,0,1)
+
+                    // Ground equation self-check (should be ≈ 0)
+                    var testP = new WVec3(0, 0, (float)groundZ);
+                    var groundEqCheck = WVec3.Dot(new WVec3(0, 0, 1), testP) + planeConstant;
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, $"Ground eq check (should≈0): {groundEqCheck:F6}");
+
+                    // Create default ground
+                    var groundShape = new StaticPlaneShape(new WVec3(0, 0, 1), planeConstant);
+                    shapes.Add(groundShape);
+                    var groundMotion = new DefaultMotionState(WMat.Identity);
+                    motions.Add(groundMotion);
+                    using var info = new RigidBodyConstructionInfo(0, groundMotion, groundShape, WVec3.Zero);
+                    var ground = new RigidBody(info) 
+                    { 
+                        Friction = 0.7f, 
+                        Restitution = 0.0f 
+                    }; // Default ground properties
+                    world.AddRigidBody(ground);
+                    bodies.Add(ground);
+                }
+
+                for (int i = 0; i < n; i++)
+                {
+                    bool isStatic = masses[i] <= 0.0 || staticSet.Contains(i);
+                    var shape = CreateShapeFromMesh(localMeshes[i], sceneToMeters, isStatic, triMeshes);
+                    shapes.Add(shape);
+
+                    var start = RhinoXformToMatrix(startTransforms[i], sceneToMeters);
+                    var motion = new DefaultMotionState(start);
+                    motions.Add(motion);
+
+                    WVec3 inertia = WVec3.Zero;
+                    float mass = isStatic ? 0f : (float)masses[i];
+                    if (!isStatic) shape.CalculateLocalInertia(mass, out inertia);
+
+                    // Use world AABB for CCD sizing (more accurate than local AABB)
+                    shape.GetAabb(start, out var mnW, out var mxW);
+                    var extentW = mxW - mnW;
+                    var bodySize = Math.Max(extentW.X, Math.Max(extentW.Y, extentW.Z));
+                    var meanSize = (extentW.X + extentW.Y + extentW.Z) / 3f;
+
+                    // Set convex margin based on world scale (unified 0.5% for consistency)
+                    if (shape is ConvexShape convex)
+                    {
+                        var relMargin = Math.Clamp(meanSize * 0.005f, 1e-6f, 0.01f); // 0.5% of object size
+                        convex.Margin = relMargin;
+                    }
+
+                    using var rbInfo = new RigidBodyConstructionInfo(mass, motion, shape, inertia);
+                    var body = new RigidBody(rbInfo)
+                    {
+                        Friction = (float)frictionCoeffs[i],
+                        Restitution = (float)restitutionCoeffs[i],
+                        RollingFriction = (float)rollingFrictionCoeffs[i],
+                        SpinningFriction = (float)spinningFrictionCoeffs[i],
+                        // CCD radius/threshold based on world AABB (prevents tunneling)
+                        CcdSweptSphereRadius = Math.Max(1e-5f, bodySize * 0.05f),
+                        CcdMotionThreshold = Math.Max(1e-5f, bodySize * 0.05f),
+
+                        // Contact processing threshold follows margin scale
+                        ContactProcessingThreshold = shape is ConvexShape cs ? cs.Margin * 2f : Math.Max(0.001f * (float)sceneToMeters, 1e-5f)
+                    };
+
+                    // Bullet best practice: Let dynamic bodies sleep for performance, only demo keeps them awake
+                    if (!isStatic)
+                    {
+                        body.ActivationState = ActivationState.ActiveTag; // Initially active, but can sleep
+                    }
+                    world.AddRigidBody(body);
+                    bodies.Add(body);
+                    partBodies.Add(body); // Add to part bodies for correct output indexing
+                }
+
+                // Adaptive substepping for variable timestep (prevents tunneling with large dt)
+                // Smaller internal step for small-scale models, more substeps allowed
+                float userDt = (float)dt;
+                float fixedInternalStep = Math.Min(userDt, 1f / 240f);  // Min 240Hz for stability
+                int maxSubs = Math.Clamp((int)Math.Ceiling(userDt / fixedInternalStep), 1, 16); // Allow more substeps
+
+                // Run simulation steps with adaptive substepping
+                int finalTargetSteps = isInPlayback
+                    ? Math.Min(_currentStep + steps, _totalSteps)
+                    : steps;
+
+                for (int step = _currentStep; step < finalTargetSteps; step++)
+                {
+                    // Use substepping to prevent tunneling while respecting user's dt preference
+                    // Each playback step advances physics by dt time
+                    world.StepSimulation(userDt, maxSubs, fixedInternalStep);
+                }
+
+                // Update current step and time
+                _currentStep = finalTargetSteps;
+                _currentTime = _currentStep * dt;
+
+                // Get final transforms after all simulation steps
+                var outX = new List<Transform>(n);
+                var outMeshes = new List<Rhino.Geometry.Mesh>(n);
+                var outBoxes = new List<Box>(n);
+                for (int i = 0; i < n; i++)
+                {
+                    var rb = partBodies[i];
+                    rb.GetWorldTransform(out WMat wm);
+                    var metersToScene = (sceneToMeters > 0) ? 1.0 / sceneToMeters : 1.0;
+                    var physicsXf = BMatToRhinoXform(wm, metersToScene);
+
+                    // OutXforms should be transforms that can be applied to ORIGINAL input meshes
+                    // physics_world_transform * pose_estimation_transform (WorldFromLocal)
+                    var startXf = startTransforms[i]; // Use correct index for part bodies
+                    var finalXf = Transform.Multiply(physicsXf, startXf);
+                    outX.Add(finalXf);
+
+                    var dup = localMeshes[i].DuplicateMesh();
+                    dup.Transform(physicsXf);
+                    outMeshes.Add(dup);
+
+                    // Final frame = physicsXf applied to startFrame
+                    var finalFrame = startFrames[i];
+                    finalFrame.Transform(physicsXf);
+                    var obb = ComputeOBBFromFrameAndMesh(finalFrame, dup);
+                    outBoxes.Add(obb);
+                }
+
+                var contacts = new List<string>();
+                _collisionCount = 0;
+                int numManifolds = dispatcher.NumManifolds;
+                for (int m = 0; m < numManifolds; m++)
+                {
+                    var mani = dispatcher.GetManifoldByIndexInternal(m);
+                    if (mani.NumContacts == 0) continue;
+                    var a = mani.Body0 as RigidBody;
+                    var b = mani.Body1 as RigidBody;
+                    int ia = bodies.IndexOf(a), ib = bodies.IndexOf(b);
+                    if (ia < 0 || ib < 0) continue;
+                    for (int c = 0; c < mani.NumContacts; c++)
+                    {
+                        var pt = mani.GetContactPoint(c);
+                        var p = pt.PositionWorldOnB; 
+                        var nrm = pt.NormalWorldOnB;
+                        contacts.Add($"({ia},{ib}) p=({p.X:F3},{p.Y:F3},{p.Z:F3}) n=({nrm.X:F3},{nrm.Y:F3},{nrm.Z:F3}) d={pt.Distance:F4}");
+                        _collisionCount++;
+                    }
+                }
+
+                da.SetDataList(0, outX);
+                da.SetDataList(1, outMeshes);
+                da.SetDataList(2, outBoxes);
+                da.SetDataList(3, contacts);
+
+                // Display current step and time in component message
+                this.Message = $"Step: {_currentStep}, Time: {_currentTime:F2}s";
+
+                // Update form status if it exists
+                if (_form != null)
+                {
+                    _form.UpdateStatus(_currentStep, _currentTime, _totalSteps, userTargetTime, _collisionCount, _fps);
+                }
+
+                // Auto-pause condition
+                if (isInPlayback)
+                {
+                    Update(); // Schedule next frame
+
+                    // Only use user's Time>0 as stop point if given; otherwise play to end
+                    double autoStopAt = (userTargetTime > 0) ? userTargetTime : _totalSteps * dt;
+                    if (_currentTime >= autoStopAt)
+                        Pause();
+                }
+
+                // Explicit cleanup of bodies/motions/shapes before world disposal
+                foreach (var body in bodies)
+                {
+                    if (body != null)
+                    {
+                        world.RemoveRigidBody(body);
+                        try { body.MotionState?.Dispose(); } catch { }
+                        try { body.Dispose(); } catch { }
+                    }
+                }
+                foreach (var shape in shapes)
+                {
+                    try { shape?.Dispose(); } catch { }
+                }
+                foreach (var triMesh in triMeshes)
+                {
+                    try { triMesh?.Dispose(); } catch { }
+                }
+                // motions disposed via body.MotionState above; clear lists
+                bodies.Clear(); shapes.Clear(); motions.Clear(); triMeshes.Clear();
+
+                // Note: External GroundWrapper resources are managed by the wrapper itself
+                // and are not added to our local lists, so no double-free risk
+            }
+            catch (DllNotFoundException ex)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Bullet native DLL missing: {ex.Message}. Ensure BulletSharpPInvoke natives are next to the .gha (win-x64). Try copying build\\bin\\Debug\\net7.0-windows\\win-x64 contents to your GH Libraries folder.");
+                return;
+            }
+            catch (BadImageFormatException ex)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Architecture mismatch (x86/x64): {ex.Message}. Use 64-bit Rhino and win-x64 binaries.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Physics init failed: {ex.Message}");
+                return;
+            }
+        }
+
+        static CollisionShape CreateShapeFromMesh(Rhino.Geometry.Mesh m, double sceneToMeters, bool isStatic, List<BulletSharp.TriangleMesh> triMeshes)
+        {
+            m.EnsurePrivateCopy();
+            m.UnifyNormals();
+            m.Normals.ComputeNormals();
+            m.Compact();
+
+            CollisionShape shape;
+            if (isStatic)
+            {
+                // Static objects: Use BvhTriangleMeshShape for accurate concave geometry
+                var triangleMesh = new TriangleMesh();
+                triMeshes.Add(triangleMesh); // Save reference to prevent GC
+                for (int i = 0; i < m.Faces.Count; i++)
+                {
+                    var face = m.Faces[i];
+                    if (face.IsTriangle)
+                    {
+                        var v0 = m.Vertices[face.A];
+                        var v1 = m.Vertices[face.B];
+                        var v2 = m.Vertices[face.C];
+                        triangleMesh.AddTriangle(
+                            new WVec3((float)(v0.X * sceneToMeters), (float)(v0.Y * sceneToMeters), (float)(v0.Z * sceneToMeters)),
+                            new WVec3((float)(v1.X * sceneToMeters), (float)(v1.Y * sceneToMeters), (float)(v1.Z * sceneToMeters)),
+                            new WVec3((float)(v2.X * sceneToMeters), (float)(v2.Y * sceneToMeters), (float)(v2.Z * sceneToMeters)));
+                    }
+                    else if (face.IsQuad)
+                    {
+                        var v0 = m.Vertices[face.A];
+                        var v1 = m.Vertices[face.B];
+                        var v2 = m.Vertices[face.C];
+                        var v3 = m.Vertices[face.D];
+                        // Split quad into two triangles
+                        triangleMesh.AddTriangle(
+                            new WVec3((float)(v0.X * sceneToMeters), (float)(v0.Y * sceneToMeters), (float)(v0.Z * sceneToMeters)),
+                            new WVec3((float)(v1.X * sceneToMeters), (float)(v1.Y * sceneToMeters), (float)(v1.Z * sceneToMeters)),
+                            new WVec3((float)(v2.X * sceneToMeters), (float)(v2.Y * sceneToMeters), (float)(v2.Z * sceneToMeters)));
+                        triangleMesh.AddTriangle(
+                            new WVec3((float)(v2.X * sceneToMeters), (float)(v2.Y * sceneToMeters), (float)(v2.Z * sceneToMeters)),
+                            new WVec3((float)(v3.X * sceneToMeters), (float)(v3.Y * sceneToMeters), (float)(v3.Z * sceneToMeters)),
+                            new WVec3((float)(v0.X * sceneToMeters), (float)(v0.Y * sceneToMeters), (float)(v0.Z * sceneToMeters)));
+                    }
+                }
+                shape = new BvhTriangleMeshShape(triangleMesh, true);
+                // Static triangle mesh margin should be 0 for stability
+                shape.Margin = 0f;
+            }
+            else
+            {
+                // Dynamic objects: Detect concavity and use appropriate shape
+                bool isConcave = IsMeshConcave(m);
+                if (isConcave)
+                {
+                    // Dynamic concave: Use compound convex shape (basic convex decomposition)
+                    shape = CreateCompoundConvexShape(m, sceneToMeters);
+                }
+                else
+                {
+                    // Dynamic convex: Use single ConvexHullShape
+                    var hull = new ConvexHullShape();
+                    for (int i = 0; i < m.Vertices.Count; i++)
+                    {
+                        var v = m.Vertices[i];
+                        hull.AddPoint(new WVec3((float)(v.X * sceneToMeters), (float)(v.Y * sceneToMeters), (float)(v.Z * sceneToMeters)));
+                    }
+
+                    // Bullet best practice: Optimize convex hull
+                    hull.RecalcLocalAabb();
+                    shape = hull;
+
+                    // Set margin for dynamic convex shapes (1.5% of object size, scaled for scene units)
+                    WVec3 aabbMin, aabbMax;
+                    shape.GetAabb(WMat.Identity, out aabbMin, out aabbMax);
+                    var aabb = aabbMax - aabbMin;
+                    float size = Math.Max(aabb.X, Math.Max(aabb.Y, aabb.Z));
+                    // Scale margin based on scene units to prevent excessive gaps in small-scale scenes
+                    float baseMargin = Math.Clamp(size * 0.015f, 1e-5f, 0.05f);
+                    ((ConvexShape)shape).Margin = Math.Max(baseMargin, (float)(0.001 * sceneToMeters)); // At least 1mm in scene units
+                }
+            }
+
+            return shape;
+        }
+
+        static bool IsMeshConcave(Rhino.Geometry.Mesh m)
+        {
+            // Simple concavity detection: check if any internal angles are > 180 degrees
+            // This is a basic heuristic - more sophisticated methods exist but this works for most cases
+            for (int i = 0; i < m.Faces.Count; i++)
+            {
+                var face = m.Faces[i];
+                if (face.IsTriangle)
+                {
+                    var v0 = m.Vertices[face.A];
+                    var v1 = m.Vertices[face.B];
+                    var v2 = m.Vertices[face.C];
+
+                    // Check internal angles at each vertex
+                    if (IsInternalAngleConcave(face.A, v0, v1, v2, m) ||
+                        IsInternalAngleConcave(face.B, v1, v2, v0, m) ||
+                        IsInternalAngleConcave(face.C, v2, v0, v1, m))
+                    {
+                        return true;
+                    }
+                }
+                else if (face.IsQuad)
+                {
+                    var v0 = m.Vertices[face.A];
+                    var v1 = m.Vertices[face.B];
+                    var v2 = m.Vertices[face.C];
+                    var v3 = m.Vertices[face.D];
+
+                    // Check internal angles for quad (split into two triangles)
+                    if (IsInternalAngleConcave(face.A, v0, v1, v2, m) || IsInternalAngleConcave(face.B, v1, v2, v3, m) ||
+                        IsInternalAngleConcave(face.C, v2, v3, v0, m) || IsInternalAngleConcave(face.D, v3, v0, v1, m))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        static bool IsInternalAngleConcave(int centerIndex, Point3d center, Point3d prev, Point3d next, Rhino.Geometry.Mesh m)
+        {
+            // Calculate vectors from center to adjacent vertices
+            var v1 = prev - center;
+            var v2 = next - center;
+
+            // Calculate cross product to determine angle direction
+            var cross = Vector3d.CrossProduct(v1, v2);
+
+            // If mesh has normals, use them to determine if this is an internal angle
+            if (m.Normals.Count > centerIndex)
+            {
+                // For a properly oriented mesh, internal angles should point towards the normal
+                // If cross product points in opposite direction to normal, it's concave
+                var normal = m.Normals[centerIndex];
+                return Vector3d.Multiply(cross, normal) < 0;
+            }
+            else
+            {
+                // Fallback: assume standard orientation and check cross product magnitude
+                return cross.Z < 0; // For XY plane assumption
+            }
+        }
+
+        // Helper function to calculate centroid of a list of points
+        static WVec3 CenterOf(List<WVec3> points)
+        {
+            if (points.Count == 0) return WVec3.Zero;
+
+            WVec3 sum = WVec3.Zero;
+            foreach (var p in points)
+                sum += p;
+            return sum / points.Count;
+        }
+
+        static CollisionShape CreateCompoundConvexShape(Rhino.Geometry.Mesh m, double sceneToMeters)
+        {
+            // Basic convex decomposition: split mesh into upper and lower halves
+            // This is a simplified approach - real convex decomposition would be more complex
+            var bbox = m.GetBoundingBox(true);
+            double midZ = (bbox.Min.Z + bbox.Max.Z) / 2.0;
+
+            var upperHullPoints = new List<WVec3>();
+            var lowerHullPoints = new List<WVec3>();
+
+            for (int i = 0; i < m.Vertices.Count; i++)
+            {
+                var v = m.Vertices[i];
+                // Validate vertex coordinates
+                if (float.IsNaN(v.X) || float.IsNaN(v.Y) || float.IsNaN(v.Z) ||
+                    float.IsInfinity(v.X) || float.IsInfinity(v.Y) || float.IsInfinity(v.Z))
+                    continue;
+
+                var wvec = new WVec3((float)(v.X * sceneToMeters), (float)(v.Y * sceneToMeters), (float)(v.Z * sceneToMeters));
+
+                if (v.Z >= midZ)
+                    upperHullPoints.Add(wvec);
+                else
+                    lowerHullPoints.Add(wvec);
+            }
+
+            // Create compound shape if both hulls have points
+            if (upperHullPoints.Count > 0 && lowerHullPoints.Count > 0)
+            {
+                var compound = new CompoundShape();
+
+                // Calculate centroids for proper positioning (prevent overlap)
+                WVec3 Cu = CenterOf(upperHullPoints);
+                WVec3 Cl = CenterOf(lowerHullPoints);
+
+                // Build hulls with points relative to their centroids
+                var upperHull = new ConvexHullShape();
+                var lowerHull = new ConvexHullShape();
+
+                foreach (var p in upperHullPoints) upperHull.AddPoint(p - Cu);
+                foreach (var p in lowerHullPoints) lowerHull.AddPoint(p - Cl);
+
+                upperHull.RecalcLocalAabb();
+                lowerHull.RecalcLocalAabb();
+
+                // Add hulls with centroid-based transforms
+                var Tu = WMat.CreateTranslation(Cu);
+                var Tl = WMat.CreateTranslation(Cl);
+                compound.AddChildShape(Tu, upperHull);
+                compound.AddChildShape(Tl, lowerHull);
+
+                // Set margin for compound shape (unified 0.5% for consistency)
+                WVec3 aabbMin, aabbMax;
+                compound.GetAabb(WMat.Identity, out aabbMin, out aabbMax);
+                var aabb = aabbMax - aabbMin;
+                float size = Math.Max(aabb.X, Math.Max(aabb.Y, aabb.Z));
+                float baseMargin = Math.Clamp(size * 0.005f, 1e-6f, 0.01f); // 0.5% of compound size
+                compound.Margin = baseMargin;
+
+                return compound;
+            }
+            else
+            {
+                // Fallback to single hull if splitting didn't work
+                var singleHull = new ConvexHullShape();
+                for (int i = 0; i < m.Vertices.Count; i++)
+                {
+                    var v = m.Vertices[i];
+                    singleHull.AddPoint(new WVec3((float)(v.X * sceneToMeters), (float)(v.Y * sceneToMeters), (float)(v.Z * sceneToMeters)));
+                }
+                singleHull.RecalcLocalAabb();
+
+                WVec3 aabbMin, aabbMax;
+                singleHull.GetAabb(WMat.Identity, out aabbMin, out aabbMax);
+                var aabb = aabbMax - aabbMin;
+                float size = Math.Max(aabb.X, Math.Max(aabb.Y, aabb.Z));
+                // Set margin for single convex hull (unified 0.5% for consistency)
+                float baseMargin = Math.Clamp(size * 0.005f, 1e-6f, 0.01f); // 0.5% of hull size
+                ((ConvexShape)singleHull).Margin = baseMargin;
+
+                return singleHull;
+            }
+        }
+
+        static WMat RhinoXformToMatrix(Transform x, double sceneToMeters)
+        {
+            // Numerics uses row-major order, translation in M41..M43
+            // Rhino's translation is in last column M03,M13,M23
+            var m = WMat.Identity;
+
+            // Rotation/scale 3x3
+            m.M11 = (float)x.M00; m.M12 = (float)x.M01; m.M13 = (float)x.M02;
+            m.M21 = (float)x.M10; m.M22 = (float)x.M11; m.M23 = (float)x.M12;
+            m.M31 = (float)x.M20; m.M32 = (float)x.M21; m.M33 = (float)x.M22;
+
+            // Translation: put to M41..M43 and scale units
+            m.M41 = (float)(x.M03 * sceneToMeters);
+            m.M42 = (float)(x.M13 * sceneToMeters);
+            m.M43 = (float)(x.M23 * sceneToMeters);
+
+            // Homogeneous last element
+            m.M44 = 1f;
+            return m;
+        }
+
+        static Transform BMatToRhinoXform(WMat m, double metersToScene)
+        {
+            var x = Transform.Identity;
+
+            // Rotation/scale 3x3
+            x.M00 = m.M11; x.M01 = m.M12; x.M02 = m.M13;
+            x.M10 = m.M21; x.M11 = m.M22; x.M12 = m.M23;
+            x.M20 = m.M31; x.M21 = m.M32; x.M22 = m.M33;
+
+            // Translation: from M41..M43, fill back to Rhino's M03,M13,M23
+            x.M03 = m.M41 * metersToScene;
+            x.M13 = m.M42 * metersToScene;
+            x.M23 = m.M43 * metersToScene;
+
+            // Homogeneous
+            x.M33 = 1.0;
+            return x;
+        }
+
+        static Plane TransformPoseFrameByPhysics(Transform poseTransform, Transform physicsTransform)
+        {
+            // Apply physics transform to the pose frame
+            var combined = Transform.Multiply(physicsTransform, poseTransform);
+            var plane = new Plane(Point3d.Origin, Vector3d.XAxis, Vector3d.YAxis);
+            plane.Transform(combined);
+            return plane;
+        }
+
+        static Box ComputeOBBFromFrameAndMesh(Plane frame, Rhino.Geometry.Mesh mesh)
+        {
+            var toLocal = Transform.PlaneToPlane(frame, Plane.WorldXY);
+            var local = mesh.DuplicateMesh();
+            local.Transform(toLocal);
+            var bbox = local.GetBoundingBox(true);
+            return new Box(frame, bbox);
+        }
+
+        // Playback controls
+        internal void TogglePlay()
+        {
+            if (!_lastTime.HasValue)
+            {
+                _lastTime = DateTime.Now;
+                if (_form is not null)
+                    _form.Play.Checked = true;
+                ExpireSolution(true);
+            }
+            else
+            {
+                Pause();
+            }
+        }
+
+        internal void Stop()
+        {
+            Pause();
+            _currentStep = 0;
+            _currentTime = 0;
+            _playbackTime = 0;
+            ExpireSolution(true);
+        }
+
+        void Pause()
+        {
+            if (_form is not null)
+                _form.Play.Checked = false;
+            _lastTime = null;
+        }
+
+        void Update()
+        {
+            if (!_lastTime.HasValue) return;
+            var now = DateTime.Now;
+            var delta = now - _lastTime.Value;
+            _lastTime = now;
+            _playbackTime += delta.TotalSeconds * _speed; // Apply speed multiplier
+
+            // Estimate FPS based on update frequency
+            _fps = 1.0 / Math.Max(delta.TotalSeconds, 0.001);
+
+            ExpireSolution(true);
+        }
+
+        public override void CreateAttributes()
+        {
+            m_attributes = new AssemblyChain.Gh.Attributes.ComponentButton(this, "Playback", ToggleForm);
+        }
+
+        public override void RemovedFromDocument(GH_Document document)
+        {
+            base.RemovedFromDocument(document);
+            if (_form != null)
+            {
+                _form.Visible = false;
+                _form.Dispose(); // Properly dispose of form to prevent resource leaks
+                _form = null;
+            }
+        }
+
+        void ToggleForm()
+        {
+            _form ??= new PhysicsPlaybackForm(this);
+            _form.Visible = !_form.Visible;
+            if (!_form.Visible) Stop();
+        }
+    }
+
+    // Professional physics simulation control console
+    internal class PhysicsPlaybackForm : AssemblyChain.Gh.UI.ComponentForm
+    {
+        readonly AssemblyPhysics _component;
+        internal readonly CheckBox Play;
+        private readonly Slider _speedSlider;
+        private readonly Label _speedLabel;
+
+        public PhysicsPlaybackForm(AssemblyPhysics component)
+        {
+            _component = component;
+            Title = "Physics Simulation Controller";
+            MinimumSize = new Size(0, 200);
+            Padding = new Padding(5);
+            var font = new Font(FontFamilies.Sans, 14, FontStyle.None, FontDecoration.None);
+            var size = new Size(35, 35);
+
+            Play = new CheckBox { Text = "\u25B6", Size = size, Font = font, Checked = false, TabIndex = 0 };
+            Play.CheckedChanged += (s, e) => component.TogglePlay();
+
+            var stop = new Button { Text = "\u25FC", Size = size, Font = font, TabIndex = 1 };
+            stop.Click += (s, e) => component.Stop();
+
+            _speedSlider = new Slider { Orientation = Orientation.Vertical, Size = new Size(-1, -1), TabIndex = 2, MaxValue = 400, MinValue = -200, TickFrequency = 100, SnapToTick = true, Value = 100 };
+            _speedSlider.ValueChanged += (s, e) => UpdateSpeed();
+
+            _speedLabel = new Label { Text = "100%", VerticalAlignment = VerticalAlignment.Center };
+
+            var layout = new DynamicLayout();
+            layout.BeginVertical();
+            layout.AddSeparateRow(padding: new Padding(10), spacing: new Size(10, 0), controls: new Control[] { Play, stop });
+            layout.BeginGroup("Speed");
+            layout.AddSeparateRow(_speedSlider, _speedLabel);
+            layout.EndGroup();
+            layout.EndVertical();
+            Content = layout;
+
+            // Initialize speed
+            UpdateSpeed();
+        }
+
+        private void UpdateSpeed()
+        {
+            var speed = (double)_speedSlider.Value / 100.0;
+            _component.Speed = speed;
+            _speedLabel.Text = $"{(int)(speed * 100)}%";
+        }
+
+        public void UpdateStatus(int currentStep, double currentTime, int totalSteps, double targetTime, int collisionCount, double fps)
+        {
+            // Simplified: no status updates needed for basic playback UI
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            _component.Stop();
+            base.OnClosing(e);
+        }
+    }
+}

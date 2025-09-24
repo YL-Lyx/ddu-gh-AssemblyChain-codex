@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetExt>.gha</TargetExt>
+    <AssemblyName>AssemblyChain.Gh</AssemblyName>
+
+    <Version>0.2</Version>
+    <Title>AssemblyChain</Title>
+    <Company>AssemblyChain Authors</Company>
+    <Description>Assembly planning and disassembly sequence generation for Grasshopper</Description>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Grasshopper" Version="$(GrasshopperVersion)" ExcludeAssets="runtime" />
+    <PackageReference Include="RhinoCommon" Version="$(RhinoCommonVersion)" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Drawing.Common" Version="7.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+  </ItemGroup>
+  
+  <!-- Use Windows Forms since we target net7.0-windows -->
+  <PropertyGroup>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Local DLL references for BulletSharp and dependencies -->
+  <ItemGroup>
+    <Reference Include="BulletSharpPInvoke">
+      <HintPath>Libs\\BulletSharpPInvoke.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="WaveEngine.Common">
+      <HintPath>Libs\\WaveEngine.Common.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="WaveEngine.Mathematics">
+      <HintPath>Libs\\WaveEngine.Mathematics.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Copy native and additional libs to output -->
+  <ItemGroup>
+    <None Include="Libs\\**\\*.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  
+  <!-- Copy built .gha and libs to Rhino 8 Grasshopper Libraries after build -->
+  <PropertyGroup>
+    <GrasshopperLibrariesDir>$(AppData)\McNeel\Rhinoceros\8.0\Plug-ins\Grasshopper\Libraries</GrasshopperLibrariesDir>
+  </PropertyGroup>
+  
+  <Target Name="AfterBuild">
+    <!-- Ensure destination exists -->
+    <MakeDir Directories="$(GrasshopperLibrariesDir)" />
+    <!-- Ensure a .gha exists in output even if the compiler emitted .dll -->
+    <ItemGroup>
+      <_BuiltDll Include="$(TargetDir)$(AssemblyName).dll" Condition="Exists('$(TargetDir)$(AssemblyName).dll') and !Exists('$(TargetDir)$(AssemblyName).gha')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_BuiltDll)" DestinationFiles="$(TargetDir)$(AssemblyName).gha" SkipUnchangedFiles="true" Condition="@(_BuiltDll) != ''" />
+
+    <!-- Copy the built plugin (.gha) to Grasshopper Libraries -->
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).gha" DestinationFolder="$(GrasshopperLibrariesDir)" SkipUnchangedFiles="true" Condition="Exists('$(TargetDir)$(AssemblyName).gha')" />
+    <!-- Copy auxiliary libs from output folder (including Libs copied above) -->
+    <ItemGroup>
+      <_DependentDlls Include="$(OutDir)**\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DependentDlls)" DestinationFolder="$(GrasshopperLibrariesDir)" SkipUnchangedFiles="true" />
+  </Target>
+  
+</Project>

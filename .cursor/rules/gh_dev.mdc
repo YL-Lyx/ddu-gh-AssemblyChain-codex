@@ -1,0 +1,23 @@
+---
+description: >
+  Rules for Grasshopper C# plugin development. The agent must always:
+  - Read all related documents, references, and existing plugin code before editing.
+  - Never auto-edit blindly; all changes must be intentional and justified.
+  - Keep code modular: separate logic into classes, methods, and namespaces.
+  - Use consistent and descriptive naming for files, classes, methods, and parameters (PascalCase for classes, camelCase for methods/variables).
+  - Structure Grasshopper components clearly: inputs, outputs, SolveInstance logic, and helper functions separated.
+  - Always write reusable utilities instead of duplicating code across components.
+  - Consider cross-file and cross-component relationships (shared utilities, dependencies).
+  - Add XML documentation comments (`///`) for public classes and methods.
+  - Validate all inputs inside Grasshopper components and provide meaningful error messages/warnings to the user.
+  - Test every component with sample Grasshopper definitions; verify outputs match expectations.
+  - Remove temporary code, debug logs, or unused test files before finalizing.
+  - Maintain clean solution/project structure (e.g., Components/, Utils/, Tests/ folders).
+  - Ensure Definition of Done: plugin compiles, tests pass, UI behaves as expected, docs updated, no temporary code left.
+globs:
+  - "**/*.cs"
+  - "**/*.gh"
+  - "**/*.ghx"
+alwaysApply: true
+---
+

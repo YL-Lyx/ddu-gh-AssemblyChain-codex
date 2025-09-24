@@ -1,0 +1,63 @@
+<Project>
+  <!-- Common build properties shared across all projects -->
+  <PropertyGroup>
+    <!-- Target .NET 7.0 for Windows -->
+    <TargetFramework>net7.0-windows</TargetFramework>
+
+    <!-- Enable dynamic loading for better performance -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+
+    <!-- Use C# 10.0 language features -->
+    <LangVersion>10.0</LangVersion>
+
+    <!-- Disable auto-generated assembly attributes to prevent conflicts -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <!-- Common warning suppressions -->
+    <NoWarn>NU1701;NETSDK1086</NoWarn>
+
+    <!-- Output paths -->
+    <OutputPath>..\..\build\bin\$(Configuration)\</OutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+
+    <!-- Enable Windows targeting for Windows Forms support -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- Code quality settings -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>CS1591</WarningsNotAsErrors> <!-- Missing XML comment for publicly visible type -->
+
+    <!-- Deterministic builds -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- Common package versions -->
+  <PropertyGroup>
+    <NewtonsoftJsonVersion>13.0.3</NewtonsoftJsonVersion>
+    <RhinoCommonVersion>8.0.23304.9001</RhinoCommonVersion>
+    <GrasshopperVersion>8.0.23304.9001</GrasshopperVersion>
+  </PropertyGroup>
+
+  <!-- Test project specific settings -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Debug configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Release configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+</Project>
