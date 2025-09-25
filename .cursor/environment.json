@@ -1,0 +1,14 @@
+{
+  "install": "bash tools/install.sh",
+  "start": "bash tools/build.sh",
+  "terminals": [
+    {
+      "name": "Run Tests",
+      "command": "bash tools/test.sh"
+    },
+    {
+      "name": "Pack Plugin",
+      "command": "bash tools/pack.sh"
+    }
+  ]
+}

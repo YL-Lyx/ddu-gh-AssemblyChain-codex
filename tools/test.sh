@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
-SOLUTION="$ROOT_DIR/AssemblyChain-Core.sln"
+export PATH="$HOME/.dotnet:$PATH"
 
-echo "Running dotnet test on $SOLUTION"
-dotnet test "$SOLUTION" "$@"
+# 运行单元测试（不重新 build）
+dotnet test tests/AssemblyChain.Core.Tests/AssemblyChain.Core.Tests.csproj -c Release --no-build
