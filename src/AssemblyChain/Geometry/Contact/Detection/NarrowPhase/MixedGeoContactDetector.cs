@@ -5,7 +5,7 @@ using Rhino.Geometry;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Planning.Model;
 using AssemblyChain.IO.Contracts;
-using AssemblyChain.Geometry.Toolkit;
+using AssemblyChain.Geometry.Toolkit.Intersection;
 
 namespace AssemblyChain.Geometry.Contact.Detection.NarrowPhase
 {
@@ -50,7 +50,7 @@ namespace AssemblyChain.Geometry.Contact.Detection.NarrowPhase
                     System.Diagnostics.Debug.WriteLine($"[MixedGeoContactDetector] Converted to Mesh-Mesh detection");
 
                     // 使用Mesh检测器进行最终检测
-                    var result = Toolkit.Intersection.MeshMeshIntersect.DetectContactsBasedOnIntersection(
+                    var result = MeshMeshIntersect.DetectContactsBasedOnIntersection(
                         processedMeshA, processedMeshB, options,
                         $"P{partA.Id:D4}", $"P{partB.Id:D4}");
 

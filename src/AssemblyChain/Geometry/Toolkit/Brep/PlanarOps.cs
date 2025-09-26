@@ -5,6 +5,7 @@ using Rhino.Geometry;
 using AssemblyChain.Planning.Model;
 using AssemblyChain.IO.Contracts;
 using AssemblyChain.Core.Domain.Entities;
+using AssemblyChain.Geometry.Toolkit.Utils;
 
 namespace AssemblyChain.Geometry.Toolkit.Brep
 {
@@ -420,9 +421,9 @@ namespace AssemblyChain.Geometry.Toolkit.Brep
 
                         // Use centroid, area and plane for deduplication
                         var centroid = patch.GetBoundingBox(true).Center;
-                        var centroidKey = Toolkit.Utils.Hashing.ForCentroid(centroid, adaptiveTol);
-                        var areaKey = Toolkit.Utils.Hashing.ForArea(area, adaptiveTol);
-                        var planeKey = Toolkit.Utils.Hashing.ForPlane(pl, adaptiveTol);
+                        var centroidKey = Hashing.ForCentroid(centroid, adaptiveTol);
+                        var areaKey = Hashing.ForArea(area, adaptiveTol);
+                        var planeKey = Hashing.ForPlane(pl, adaptiveTol);
                         var key = $"{planeKey}_{centroidKey}_{areaKey}";
 
                         if (seen.Add(key))
@@ -464,7 +465,7 @@ namespace AssemblyChain.Geometry.Toolkit.Brep
 
                 var zone = new ContactZone(geom, area, len);
                 var cp = new ContactPlane(contactPlane, contactPlane.Normal, contactPlane.Origin);
-                var block = Toolkit.Utils.ContactDetectionHelpers.IsContactBlocking(type, mu);
+                var block = ContactDetectionHelpers.IsContactBlocking(type, mu);
                 return new ContactData($"P{A.Id:D4}", $"P{B.Id:D4}", type, zone, cp, mu, e, block);
             };
         }

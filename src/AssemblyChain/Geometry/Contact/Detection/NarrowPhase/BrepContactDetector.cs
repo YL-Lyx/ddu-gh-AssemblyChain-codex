@@ -5,7 +5,7 @@ using Rhino.Geometry;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Planning.Model;
 using AssemblyChain.IO.Contracts;
-using AssemblyChain.Geometry.Toolkit;
+using AssemblyChain.Geometry.Toolkit.Brep;
 
 namespace AssemblyChain.Geometry.Contact.Detection.NarrowPhase
 {
@@ -39,7 +39,7 @@ namespace AssemblyChain.Geometry.Contact.Detection.NarrowPhase
             try
             {
                 // 使用PlanarOps进行共面接触检测
-                var result = Toolkit.Brep.PlanarOps.DetectCoplanarContacts(brepA, brepB, partA, partB, options);
+                var result = PlanarOps.DetectCoplanarContacts(brepA, brepB, partA, partB, options);
 
                 contacts.AddRange(result.Contacts);
 
