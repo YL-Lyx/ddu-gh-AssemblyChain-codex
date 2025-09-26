@@ -1,65 +1,34 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Contact;
-using Rhino.Geometry;
+// 改造目的：重构 MILP 求解器为统一模板，输出后端结果。
+// 兼容性注意：保留旧类型名称的包装以避免上层破坏。
+using AssemblyChain.Core.Solver.Backends;
 
 namespace AssemblyChain.Core.Solver
 {
     /// <summary>
-    /// Mixed Integer Linear Programming (MILP) solver.
-    /// Placeholder implementation.
+    /// Mixed Integer Linear Programming solver wrapper.
     /// </summary>
-    public sealed class MILPsolver : ISolver
+    public sealed class MilpSolver : BaseSolver
     {
-        public DgSolverModel Solve(
-            AssemblyModel assembly,
-            ContactModel contacts,
-            ConstraintModel constraints,
-            object options = null)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MilpSolver"/> class.
+        /// </summary>
+        /// <param name="backend">Backend implementation to use.</param>
+        public MilpSolver(ISolverBackend? backend = null)
+            : base("MILP", backend ?? new OrToolsBackend())
         {
-            var stopwatch = Stopwatch.StartNew();
+        }
+    }
 
-            try
-            {
-                var steps = new List<Step>();
-                var vectors = new List<Vector3d>();
-                var groups = new List<IReadOnlyList<int>>();
-
-                var result = new DgSolverModel(
-                    steps,
-                    vectors,
-                    groups,
-                    isFeasible: false,
-                    isOptimal: false,
-                    log: "MILP solver placeholder",
-                    solveTimeSeconds: stopwatch.Elapsed.TotalSeconds,
-                    solverType: "MILP",
-                    metadata: new Dictionary<string, object>()
-                );
-
-                stopwatch.Stop();
-                return result;
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                return new DgSolverModel(
-                    new List<Step>(),
-                    new List<Vector3d>(),
-                    new List<IReadOnlyList<int>>(),
-                    isFeasible: false,
-                    isOptimal: false,
-                    log: $"MILP exception: {ex.Message}",
-                    solveTimeSeconds: stopwatch.Elapsed.TotalSeconds,
-                    solverType: "MILP",
-                    metadata: new Dictionary<string, object>()
-                );
-            }
+    /// <summary>
+    /// Legacy casing preserved for compatibility.
+    /// </summary>
+    public sealed class MILPsolver : MilpSolver
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MILPsolver"/> class.
+        /// </summary>
+        public MILPsolver(ISolverBackend? backend = null) : base(backend)
+        {
         }
     }
 }
-
-

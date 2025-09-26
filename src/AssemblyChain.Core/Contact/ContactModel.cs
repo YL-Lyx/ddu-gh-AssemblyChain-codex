@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
+using AssemblyChain.Core.Contracts;
 
 namespace AssemblyChain.Core.Contact
 {
@@ -148,22 +149,6 @@ namespace AssemblyChain.Core.Contact
         Point,
         Edge,
         Face
-    }
-
-    /// <summary>
-    /// Geometric zone where contact occurs
-    /// </summary>
-    public record ContactZone(GeometryBase Geometry, double Area = 0.0, double Length = 0.0, double Volume = 0.0)
-    {
-        /// <summary>
-        /// String representation for display
-        /// </summary>
-        public override string ToString()
-        {
-            if (Geometry is Curve)
-                return $"{Geometry?.GetType().Name} (Len: {Length:F3})";
-            return $"{Geometry?.GetType().Name} (Area: {Area:F3})";
-        }
     }
 
     /// <summary>
