@@ -1,10 +1,10 @@
 #nullable enable
 using System;
 using System.Linq;
-using AssemblyChain.Core;
-using AssemblyChain.Core.Contact;
-using AssemblyChain.Core.Facade;
-using AssemblyChain.Core.Model;
+using AssemblyChain.Geometry.Contact;
+using AssemblyChain.Geometry.Contact.Detection;
+using AssemblyChain.Planning.Facade;
+using AssemblyChain.Planning.Model;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AssemblyChain.Core.Toolkit.Math;
+using AssemblyChain.Geometry.Toolkit.Math;
 using FsCheck;
 using FsCheck.Xunit;
 using Rhino.Geometry;

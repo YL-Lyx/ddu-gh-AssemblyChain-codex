@@ -7,5 +7,6 @@
   <ItemGroup>
     <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
     <ProjectReference Include="..\AssemblyChain.Geometry\AssemblyChain.Geometry.csproj" />
+    <PackageReference Include="RhinoCommon" Version="$(RhinoCommonVersion)" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

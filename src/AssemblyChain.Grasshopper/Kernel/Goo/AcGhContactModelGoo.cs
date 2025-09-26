@@ -1,5 +1,5 @@
 using System;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Geometry.Contact;
 using Grasshopper.Kernel.Types;
 
 namespace AssemblyChain.Gh.Kernel

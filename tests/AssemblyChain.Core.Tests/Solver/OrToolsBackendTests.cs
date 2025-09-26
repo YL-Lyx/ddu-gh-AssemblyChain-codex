@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using AssemblyChain.Core.Contracts;
+using AssemblyChain.IO.Contracts;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
-using AssemblyChain.Core.Facade;
-using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Solver;
-using AssemblyChain.Core.Solver.Backends;
+using AssemblyChain.Planning.Facade;
+using AssemblyChain.Planning.Model;
+using AssemblyChain.Planning.Solver;
+using AssemblyChain.Planning.Solver.Backends;
 using Rhino.Geometry;
 using Xunit;
 
