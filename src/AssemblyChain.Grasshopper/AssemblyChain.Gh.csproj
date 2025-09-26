@@ -7,6 +7,8 @@
     <Title>AssemblyChain</Title>
     <Company>AssemblyChain Authors</Company>
     <Description>Assembly planning and disassembly sequence generation for Grasshopper</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(BaseIntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
   
   <ItemGroup>
