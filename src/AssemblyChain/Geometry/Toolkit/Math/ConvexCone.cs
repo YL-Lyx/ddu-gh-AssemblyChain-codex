@@ -25,9 +25,8 @@ namespace AssemblyChain.Geometry.Toolkit.Math
             /// <param name="offset">The signed offset from the origin.</param>
             public Halfspace(Vector3d normal, double offset)
             {
-                Normal = normal;
-                Normal.Unitize();
-                Offset = offset;
+                Normal = Normalize(normal, out var scale);
+                Offset = scale > 0 ? offset / scale : offset;
             }
 
             /// <summary>
@@ -37,9 +36,8 @@ namespace AssemblyChain.Geometry.Toolkit.Math
             /// <param name="point">A point that lies on the halfspace boundary.</param>
             public Halfspace(Vector3d normal, Point3d point)
             {
-                Normal = normal;
-                Normal.Unitize();
-                Offset = Vector3d.Multiply(Normal, new Vector3d(point.X, point.Y, point.Z));
+                Normal = Normalize(normal, out _);
+                Offset = Normal.IsZero ? 0 : Vector3d.Multiply(Normal, new Vector3d(point.X, point.Y, point.Z));
             }
 
             /// <summary>
@@ -154,7 +152,10 @@ namespace AssemblyChain.Geometry.Toolkit.Math
         /// <returns>A distinct list of normalized boundary rays.</returns>
         public static IReadOnlyList<Vector3d> ComputeExtremeRays(Cone cone)
         {
-            return (cone?.Halfspaces ?? new List<Halfspace>()).Select(h => h.Normal).Distinct().ToList();
+            return (cone?.Halfspaces ?? new List<Halfspace>())
+                .Select(h => h.Normal)
+                .Distinct(new Vector3dEqualityComparer())
+                .ToList();
         }
 
         /// <summary>
@@ -297,17 +298,47 @@ namespace AssemblyChain.Geometry.Toolkit.Math
         {
             var rays = new List<Vector3d>();
             if (count <= 0) return rays;
+            if (count == 1)
+            {
+                rays.Add(Vector3d.ZAxis);
+                return rays;
+            }
+
             var phi = System.Math.PI * (3 - System.Math.Sqrt(5));
             for (int i = 0; i < count; i++)
             {
                 var y = 1 - (i / (double)(count - 1)) * 2;
-                var radius = System.Math.Sqrt(1 - y * y);
+                var radius = System.Math.Sqrt(System.Math.Max(0, 1 - y * y));
                 var theta = phi * i;
                 var x = System.Math.Cos(theta) * radius;
                 var z = System.Math.Sin(theta) * radius;
                 rays.Add(new Vector3d(x, y, z));
             }
             return rays;
+        }
+
+        private static Vector3d Normalize(Vector3d normal, out double length)
+        {
+            length = normal.IsValid ? normal.Length : 0;
+            if (length <= double.Epsilon)
+            {
+                return Vector3d.Zero;
+            }
+
+            return normal / length;
+        }
+
+        private sealed class Vector3dEqualityComparer : IEqualityComparer<Vector3d>
+        {
+            public bool Equals(Vector3d x, Vector3d y) => (x - y).Length <= 1e-9;
+
+            public int GetHashCode(Vector3d obj)
+            {
+                return HashCode.Combine(
+                    System.Math.Round(obj.X, 9),
+                    System.Math.Round(obj.Y, 9),
+                    System.Math.Round(obj.Z, 9));
+            }
         }
     }
 }
