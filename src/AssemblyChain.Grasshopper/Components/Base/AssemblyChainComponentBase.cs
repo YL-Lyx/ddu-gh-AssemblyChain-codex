@@ -3,12 +3,14 @@ using Grasshopper.Kernel;
 using IGhComponentBase = Grasshopper.Kernel.GH_Component;
 using IGhDataAccessInternal = Grasshopper.Kernel.IGH_DataAccess;
 #else
-using AssemblyChain.GH.Stubs;
-using IGhComponentBase = AssemblyChain.GH.Stubs.GhComponentBase;
-using IGhDataAccessInternal = AssemblyChain.GH.Components.IGhDataAccess;
+using AssemblyChain.Gh.Kernel.Legacy;
+using IGhComponentBase = AssemblyChain.Gh.Kernel.Legacy.GhComponentBase;
+using IGhDataAccessInternal = AssemblyChain.Gh.Kernel.Legacy.IGhDataAccess;
 #endif
 
-namespace AssemblyChain.GH.Components;
+using AssemblyChain.Gh.Kernel.Legacy;
+
+namespace AssemblyChain.Gh.Components.Legacy;
 
 public abstract class AssemblyChainComponentBase : IGhComponentBase
 {

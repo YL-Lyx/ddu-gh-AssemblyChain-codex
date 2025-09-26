@@ -1,12 +1,9 @@
 using AssemblyChain.Constraints;
 using AssemblyChain.Core.Spatial;
-using AssemblyChain.GH.Data;
-#if !GRASSHOPPER
-using AssemblyChain.GH.Stubs;
-#endif
+using AssemblyChain.Gh.Kernel.Legacy;
 using AssemblyChain.Geometry.ContactDetection;
 
-namespace AssemblyChain.GH.Components;
+namespace AssemblyChain.Gh.Components.Legacy;
 
 public sealed class ContactDetectorComponent : AssemblyChainComponentBase
 {

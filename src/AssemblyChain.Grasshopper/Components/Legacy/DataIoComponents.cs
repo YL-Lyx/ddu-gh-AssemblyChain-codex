@@ -1,13 +1,10 @@
 using System.Collections.Generic;
 using AssemblyChain.Core.DomainModel;
 using AssemblyChain.Core.Spatial;
-using AssemblyChain.GH.Data;
-#if !GRASSHOPPER
-using AssemblyChain.GH.Stubs;
-#endif
+using AssemblyChain.Gh.Kernel.Legacy;
 using AssemblyChain.IO;
 
-namespace AssemblyChain.GH.Components;
+namespace AssemblyChain.Gh.Components.Legacy;
 
 public sealed class ImportAssemblyComponent : AssemblyChainComponentBase
 {

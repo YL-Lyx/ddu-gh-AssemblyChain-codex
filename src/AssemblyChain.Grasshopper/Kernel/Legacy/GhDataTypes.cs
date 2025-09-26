@@ -6,7 +6,7 @@ using AssemblyChain.Geometry.ContactDetection;
 using AssemblyChain.Graphs;
 using AssemblyChain.Planning;
 
-namespace AssemblyChain.GH.Data;
+namespace AssemblyChain.Gh.Kernel.Legacy;
 
 public sealed class GhAssembly
 {

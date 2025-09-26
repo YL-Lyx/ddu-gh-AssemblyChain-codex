@@ -1,5 +1,5 @@
 #if !GRASSHOPPER
-namespace AssemblyChain.GH.Stubs;
+namespace AssemblyChain.Gh.Kernel.Legacy;
 
 /// <summary>
 /// Minimal stand-ins for Grasshopper base types so the project can build without the Rhino SDK.
@@ -28,7 +28,7 @@ public abstract class GhComponentBase
 /// <summary>
 /// Minimal data access helper that mirrors Grasshopper's IGH_DataAccess semantics for tests.
 /// </summary>
-public sealed class GhDataAccess : Components.IGhDataAccess
+public sealed class GhDataAccess : IGhDataAccess
 {
     private readonly System.Collections.Generic.Dictionary<int, object?> _inputs = new();
     private readonly System.Collections.Generic.Dictionary<int, object?> _outputs = new();
