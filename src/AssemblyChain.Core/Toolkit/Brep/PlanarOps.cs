@@ -11,32 +11,8 @@ namespace AssemblyChain.Core.Toolkit.Brep
     /// <summary>
     /// Planar operations for Brep geometry including face extraction, planar segmentation, and coplanar operations.
     /// </summary>
-    public static class PlanarOps
+    public static partial class PlanarOps
     {
-        /// <summary>
-        /// Options for planar operations.
-        /// </summary>
-        public class PlanarOptions
-        {
-            public double CoplanarTolerance { get; set; } = 1e-3;
-            public double AreaTolerance { get; set; } = 1e-6;
-            public bool MergeCoplanarFaces { get; set; } = true;
-            public bool ExtractPlanarFaces { get; set; } = true;
-            public int MinFaceCount { get; set; } = 1;
-        }
-
-        /// <summary>
-        /// Result of planar operations.
-        /// </summary>
-        public class PlanarResult
-        {
-            public Dictionary<Plane, List<Rhino.Geometry.BrepFace>> PlanarFaces { get; set; } = new Dictionary<Plane, List<Rhino.Geometry.BrepFace>>();
-            public List<Plane> Planes { get; set; } = new List<Plane>();
-            public bool Success { get; set; }
-            public List<string> Warnings { get; set; } = new List<string>();
-            public List<string> Errors { get; set; } = new List<string>();
-        }
-
         /// <summary>
         /// Extracts and groups planar faces from a Brep.
         /// </summary>

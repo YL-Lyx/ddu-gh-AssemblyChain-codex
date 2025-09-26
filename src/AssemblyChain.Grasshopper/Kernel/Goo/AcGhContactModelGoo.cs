@@ -7,23 +7,26 @@ namespace AssemblyChain.Gh.Kernel
     /// <summary>
     /// Grasshopper Goo wrapper for ContactModel
     /// </summary>
-    public class AcGhContactModelGoo : GH_Goo<ContactModel>
+    public class AcGhContactModelGoo : AcGhGooBase<ContactModel>
     {
         public AcGhContactModelGoo()
         {
         }
 
         public AcGhContactModelGoo(ContactModel value)
+            : base(value)
         {
-            Value = value;
         }
 
-        public override IGH_Goo Duplicate()
+        protected override AcGhGooBase<ContactModel> CreateInstance(ContactModel value)
         {
-            return Value == null ? new AcGhContactModelGoo() : new AcGhContactModelGoo(Value);
+            return new AcGhContactModelGoo(value);
         }
 
-        public override bool IsValid => Value != null;
+        protected override AcGhGooBase<ContactModel> CreateEmpty()
+        {
+            return new AcGhContactModelGoo();
+        }
 
         public override string TypeName => "ContactModel";
 

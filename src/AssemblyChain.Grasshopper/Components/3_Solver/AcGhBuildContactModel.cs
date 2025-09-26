@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using AssemblyChain.Core;
 using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Facade;
 using AssemblyChain.Core.Model;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
@@ -11,6 +12,8 @@ namespace AssemblyChain.Gh.Kernel
 {
     public class AcGhBuildContactModel : GH_Component
     {
+        private readonly AssemblyChainFacade _facade = new();
+
         public AcGhBuildContactModel()
             : base("Build Contact Model", "BCM", "Build contact model from assembly using specified detection options", "AssemblyChain", "3|Solver")
         {
@@ -66,7 +69,7 @@ namespace AssemblyChain.Gh.Kernel
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
                     $"Starting contact detection with {assemblyModel.PartCount} parts, Tolerance={tolerance:F6}, MinPatchArea={minPatchArea:F6}");
 
-                var contactModel = ContactDetection.DetectContacts(assemblyModel, detectionOptions);
+                var contactModel = _facade.DetectContacts(assemblyModel, detectionOptions);
 
                 // Report results
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
