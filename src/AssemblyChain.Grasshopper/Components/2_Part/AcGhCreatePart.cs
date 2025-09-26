@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
+using AssemblyChain.Core.Toolkit.Processing;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
@@ -46,164 +47,85 @@ namespace AssemblyChain.Gh.Kernel
         {
             try
             {
-                // Validate input connections
                 if (!ValidateInputConnections())
                 {
                     return;
                 }
 
-                string name = string.Empty;
-                DA.GetData(0, ref name);
-                name = name?.Trim() ?? string.Empty;
+                var options = CreateOptions(DA);
+                PartCreationProcessor.PartCreationResult result = _inputMode == GeometryInputMode.Mesh
+                    ? ProcessMeshInput(DA, options)
+                    : ProcessBrepInput(DA, options);
 
-                var results = new List<object>();
-                int successCount = 0, failureCount = 0;
+                EmitMessages(result.Messages);
 
-                // Get physics properties if enabled
-                PhysicsProperties physicsProperties = null;
-                if (_includePhysics)
-                {
-                    var physicsGoo = new AcGhPhysicalPropertyGoo();
-                    if (DA.GetData(2, ref physicsGoo) && physicsGoo.Value != null)
-                    {
-                        physicsProperties = physicsGoo.Value;
-                    }
-                }
-
-                if (_inputMode == GeometryInputMode.Mesh)
-                {
-                    var meshes = new List<GH_Mesh>();
-                    if (!DA.GetDataList(1, meshes) || meshes.Count == 0)
-                    {
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No mesh geometry provided.");
-                        return;
-                    }
-
-                    for (int i = 0; i < meshes.Count; i++)
-                    {
-                        try
-                        {
-                            var m = meshes[i]?.Value?.DuplicateMesh();
-                            if (m == null || !m.IsValid)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Invalid mesh at index {i}, skipping.");
-                                continue;
-                            }
-                            m.Normals.ComputeNormals();
-
-                            var partName = !string.IsNullOrEmpty(name) ? $"{name}_{i}" : $"Part_{i}";
-                            var pg = new PartGeometry(i, m, partName, meshes[i]?.Value, "Mesh");
-
-                            object partData;
-                            if (_includePhysics && physicsProperties != null)
-                            {
-                                var part = new Part(i, partName, pg, physicsProperties);
-                                partData = part;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with physics: mass={physicsProperties.Mass:F3}kg, friction={physicsProperties.Friction:F2}");
-                            }
-                            else
-                            {
-                                partData = pg; // Store PartGeometry directly
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with {m.Vertices.Count} vertices, {m.Faces.Count} faces");
-                            }
-
-                            results.Add(partData);
-                            successCount++;
-                        }
-                        catch (Exception ex)
-                        {
-                            failureCount++;
-                            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Error at index {i}: {ex.Message}");
-                        }
-                    }
-                }
-                else // Brep
-                {
-                    var breps = new List<GH_Brep>();
-                    int inputIndex = _includePhysics ? 1 : 1;
-                    if (!DA.GetDataList(inputIndex, breps) || breps.Count == 0)
-                    {
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No brep geometry provided.");
-                        return;
-                    }
-
-                    for (int i = 0; i < breps.Count; i++)
-                    {
-                        try
-                        {
-                            var b = breps[i]?.Value;
-                            if (b == null || !b.IsValid)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Invalid brep at index {i}, skipping.");
-                                continue;
-                            }
-
-                            var brepMeshes = Mesh.CreateFromBrep(b, MeshingParameters.Default);
-                            if (brepMeshes == null || brepMeshes.Length == 0)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Meshing failed at index {i}, skipping.");
-                                continue;
-                            }
-
-                            var mesh = new Mesh();
-                            foreach (var m in brepMeshes)
-                            {
-                                if (m != null) mesh.Append(m);
-                            }
-                            if (!mesh.IsValid)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Generated mesh invalid at index {i}, skipping.");
-                                continue;
-                            }
-                            mesh.Normals.ComputeNormals();
-
-                            var partName = !string.IsNullOrEmpty(name) ? $"{name}_{i}" : $"Part_{i}";
-                            var pg = new PartGeometry(i, mesh, partName, breps[i]?.Value, "Brep");
-
-                            object partData;
-                            if (_includePhysics && physicsProperties != null)
-                            {
-                                var part = new Part(i, partName, pg, physicsProperties);
-                                partData = part;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with physics: mass={physicsProperties.Mass:F3}kg, friction={physicsProperties.Friction:F2}");
-                            }
-                            else
-                            {
-                                partData = pg; // Store PartGeometry directly
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with {mesh.Vertices.Count} vertices, {mesh.Faces.Count} faces");
-                            }
-
-                            results.Add(partData);
-                            successCount++;
-                        }
-                        catch (Exception ex)
-                        {
-                            failureCount++;
-                            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Error at index {i}: {ex.Message}");
-                        }
-                    }
-                }
-
-                var report = $"Created {successCount} Part objects";
-                if (failureCount > 0) report += $", {failureCount} failed";
-                if (_includePhysics && physicsProperties != null) report += " (with physics)";
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, report);
-
-                var goos = results.ConvertAll(p => new AcGhPartWrapGoo(p));
+                var goos = result.CreatedItems.ConvertAll(p => new AcGhPartWrapGoo(p));
                 DA.SetDataList(0, goos);
             }
             catch (Exception ex)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Unexpected error: {ex.Message}");
             }
+        }
+
+        private PartCreationProcessor.PartCreationOptions CreateOptions(IGH_DataAccess dataAccess)
+        {
+            string name = string.Empty;
+            dataAccess.GetData(0, ref name);
+
+            PhysicsProperties? physics = null;
+            if (_includePhysics)
+            {
+                var physicsGoo = new AcGhPhysicalPropertyGoo();
+                if (dataAccess.GetData(2, ref physicsGoo) && physicsGoo.Value != null)
+                {
+                    physics = physicsGoo.Value;
+                }
+            }
+
+            return new PartCreationProcessor.PartCreationOptions
+            {
+                BaseName = name?.Trim() ?? string.Empty,
+                IncludePhysics = _includePhysics,
+                Physics = physics
+            };
+        }
+
+        private PartCreationProcessor.PartCreationResult ProcessMeshInput(IGH_DataAccess dataAccess,
+            PartCreationProcessor.PartCreationOptions options)
+        {
+            var meshes = new List<GH_Mesh>();
+            dataAccess.GetDataList(1, meshes);
+            var rhinoMeshes = meshes.ConvertAll(m => m?.Value);
+            return PartCreationProcessor.FromMeshes(rhinoMeshes, options);
+        }
+
+        private PartCreationProcessor.PartCreationResult ProcessBrepInput(IGH_DataAccess dataAccess,
+            PartCreationProcessor.PartCreationOptions options)
+        {
+            var breps = new List<GH_Brep>();
+            dataAccess.GetDataList(1, breps);
+            var rhinoBreps = breps.ConvertAll(b => b?.Value);
+            return PartCreationProcessor.FromBreps(rhinoBreps, options);
+        }
+
+        private void EmitMessages(IEnumerable<ProcessingMessage> messages)
+        {
+            foreach (var message in messages)
+            {
+                AddRuntimeMessage(ToRuntimeLevel(message.Level), message.Text);
+            }
+        }
+
+        private static GH_RuntimeMessageLevel ToRuntimeLevel(ProcessingMessageLevel level)
+        {
+            return level switch
+            {
+                ProcessingMessageLevel.Remark => GH_RuntimeMessageLevel.Remark,
+                ProcessingMessageLevel.Warning => GH_RuntimeMessageLevel.Warning,
+                ProcessingMessageLevel.Error => GH_RuntimeMessageLevel.Error,
+                _ => GH_RuntimeMessageLevel.Remark
+            };
         }
 
         public override Guid ComponentGuid => new Guid("c9d0e1f2-a3b4-5678-9abc-def012345678");

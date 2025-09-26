@@ -1,12 +1,11 @@
 #nullable enable
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
 using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Toolkit.Processing;
 
 namespace AssemblyChain.Gh.Kernel
 {
@@ -32,7 +31,6 @@ namespace AssemblyChain.Gh.Kernel
         {
             try
             {
-                // Get contact model input
                 AcGhContactModelGoo contactModelGoo = null!;
                 if (!DA.GetData(0, ref contactModelGoo) || contactModelGoo?.Value == null)
                 {
@@ -40,79 +38,12 @@ namespace AssemblyChain.Gh.Kernel
                     return;
                 }
 
-                var contactModel = contactModelGoo.Value;
+                var extraction = ContactZoneExtractor.ExtractFaceContacts(contactModelGoo.Value.Contacts);
+                EmitMessages(extraction.Messages);
 
-                // 调试信息：统计各种类型的接触
-                var faceContacts = contactModel.Contacts.Where(c => c.Type == ContactType.Face).ToList();
-                var edgeContacts = contactModel.Contacts.Where(c => c.Type == ContactType.Edge).ToList();
-                var pointContacts = contactModel.Contacts.Where(c => c.Type == ContactType.Point).ToList();
-
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                    $"Total contacts: {contactModel.ContactCount} (Face: {faceContacts.Count}, Edge: {edgeContacts.Count}, Point: {pointContacts.Count})");
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                    $"Neighbor pairs: {contactModel.UniquePairs}");
-
-                // 详细调试：检查每个接触的数据
-                foreach (var contact in contactModel.Contacts)
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                        $"Contact {contact.Id}: {contact.PartAId}-{contact.PartBId}, Type={contact.Type}, Area={contact.Area:F6}, HasGeometry={contact.Zone.Geometry != null}");
-                }
-
-                if (contactModel.ContactCount > 0 && faceContacts.Count == 0)
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Only point/edge contacts were found; face contacts are required for zones output.");
-                    // Still create empty trees for all parts
-                }
-
-                // Create DataTree structures for outputs
-                var zonesTree = new GH_Structure<IGH_GeometricGoo>();
-                var planesTree = new GH_Structure<GH_Plane>();
-
-                // Get all unique part indices from contacts (not just neighbor map)
-                var allPartIndices = new HashSet<int>();
-                foreach (var contact in contactModel.Contacts)
-                {
-                    if (TryParsePartIndex(contact.PartAId, out int partAIndex))
-                        allPartIndices.Add(partAIndex);
-                    if (TryParsePartIndex(contact.PartBId, out int partBIndex))
-                        allPartIndices.Add(partBIndex);
-                }
-                var sortedPartIndices = allPartIndices.OrderBy(i => i).ToList();
-
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, $"Found part indices: {string.Join(", ", sortedPartIndices)}");
-
-                // Ensure we have branches for every part, even if empty
-                foreach (int partIndex in sortedPartIndices)
-                {
-                    var path = new GH_Path(partIndex);
-                    zonesTree.EnsurePath(path);
-                    planesTree.EnsurePath(path);
-                }
-
-                // Append each contact into both participants' branches {i} and {j}
-                foreach (var contact in faceContacts)
-                {
-                    // Parse part indices from contact IDs
-                    if (!TryParsePartIndex(contact.PartAId, out int partAIndex) ||
-                        !TryParsePartIndex(contact.PartBId, out int partBIndex))
-                    {
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Failed to parse part indices from {contact.PartAId} and {contact.PartBId}");
-                        continue;
-                    }
-
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, $"Processing face contact: {contact.PartAId}-{contact.PartBId}, Area={contact.Area:F6}, GeometryType={contact.Zone.Geometry?.GetType().Name ?? "null"}");
-
-                    AppendFaceContactToPath(contact, new GH_Path(partAIndex), zonesTree, planesTree);
-                    AppendFaceContactToPath(contact, new GH_Path(partBIndex), zonesTree, planesTree);
-                }
-
-                // Set outputs
+                var (zonesTree, planesTree) = BuildOutputTrees(extraction);
                 DA.SetDataTree(0, zonesTree);
                 DA.SetDataTree(1, planesTree);
-
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                    $"Processed {sortedPartIndices.Count} parts with contact zones");
             }
             catch (Exception ex)
             {
@@ -120,42 +51,63 @@ namespace AssemblyChain.Gh.Kernel
             }
         }
 
-        private static void AppendFaceContactToPath(ContactData contact, GH_Path path,
-            GH_Structure<IGH_GeometricGoo> zonesTree, GH_Structure<GH_Plane> planesTree)
+        private (GH_Structure<IGH_GeometricGoo> zones, GH_Structure<GH_Plane> planes) BuildOutputTrees(
+            ContactZoneExtractor.ContactZoneExtractionResult extraction)
         {
-            // Only process face contacts with valid geometries
-            if (contact.Type != ContactType.Face)
-                return;
+            var zonesTree = new GH_Structure<IGH_GeometricGoo>();
+            var planesTree = new GH_Structure<GH_Plane>();
 
-            System.Diagnostics.Debug.WriteLine($"AppendFaceContactToPath: Geometry type = {contact.Zone.Geometry?.GetType().Name ?? "null"}");
+            foreach (var partIndex in extraction.PartIndices)
+            {
+                var path = new GH_Path(partIndex);
+                zonesTree.EnsurePath(path);
+                planesTree.EnsurePath(path);
 
-            if (contact.Zone.Geometry is Brep brep)
-            {
-                System.Diagnostics.Debug.WriteLine($"Appending Brep to path {path}: Valid={brep.IsValid}, Faces={brep.Faces.Count}");
-                var geomGoo = new GH_Brep(brep);
-                zonesTree.Append(geomGoo, path);
-                planesTree.Append(new GH_Plane(contact.Plane.Plane), path);
+                if (extraction.PartGeometries.TryGetValue(partIndex, out var geometries))
+                {
+                    foreach (var geometry in geometries)
+                    {
+                        AppendGeometryToTree(geometry, path, zonesTree);
+                        planesTree.Append(new GH_Plane(geometry.Plane), path);
+                    }
+                }
             }
-            else if (contact.Zone.Geometry is Mesh mesh)
+
+            return (zonesTree, planesTree);
+        }
+
+        private static void AppendGeometryToTree(ContactZoneExtractor.ContactFaceGeometry geometry, GH_Path path,
+            GH_Structure<IGH_GeometricGoo> zonesTree)
+        {
+            if (geometry.Brep != null)
             {
-                System.Diagnostics.Debug.WriteLine($"Appending Mesh to path {path}: Valid={mesh.IsValid}, Vertices={mesh.Vertices.Count}, Faces={mesh.Faces.Count}");
-                var geomGoo = new GH_Mesh(mesh);
-                zonesTree.Append(geomGoo, path);
-                planesTree.Append(new GH_Plane(contact.Plane.Plane), path);
+                zonesTree.Append(new GH_Brep(geometry.Brep), path);
             }
-            else
+            else if (geometry.Mesh != null)
             {
-                System.Diagnostics.Debug.WriteLine($"Unknown geometry type: {contact.Zone.Geometry?.GetType().Name ?? "null"}");
+                zonesTree.Append(new GH_Mesh(geometry.Mesh), path);
             }
         }
 
-        private static bool TryParsePartIndex(string partId, out int index)
+        private void EmitMessages(IEnumerable<ProcessingMessage> messages)
         {
-            if (!string.IsNullOrEmpty(partId) && partId.StartsWith("P") && int.TryParse(partId.Substring(1), out index))
-                return true;
-            index = -1;
-            return false;
+            foreach (var message in messages)
+            {
+                AddRuntimeMessage(ToRuntimeLevel(message.Level), message.Text);
+            }
         }
+
+        private static GH_RuntimeMessageLevel ToRuntimeLevel(ProcessingMessageLevel level)
+        {
+            return level switch
+            {
+                ProcessingMessageLevel.Remark => GH_RuntimeMessageLevel.Remark,
+                ProcessingMessageLevel.Warning => GH_RuntimeMessageLevel.Warning,
+                ProcessingMessageLevel.Error => GH_RuntimeMessageLevel.Error,
+                _ => GH_RuntimeMessageLevel.Remark
+            };
+        }
+
 
         public override Guid ComponentGuid => new Guid("c7d8e9f0-a1b2-c3d4-e5f6-a7b8c9d0e1f2");
     }

@@ -130,74 +130,94 @@ namespace AssemblyChain.Core.Toolkit.Intersection
 
             try
             {
-                result.Mesh1Faces = mesh1?.Faces.Count ?? 0;
-                result.Mesh2Faces = mesh2?.Faces.Count ?? 0;
+                InitializeMetadata(mesh1, mesh2, result);
 
-                if (mesh1 == null || mesh2 == null || !mesh1.IsValid || !mesh2.IsValid)
+                if (!ValidateMeshes(mesh1, mesh2, result))
                 {
-                    result.Errors.Add("Invalid input meshes");
-                    result.Success = false;
-                    return result;
+                    return FinalizeResult(stopwatch, result, false);
                 }
 
-                // Fast bounding box pre-check
-                var bbox1 = mesh1.GetBoundingBox(true);
-                var bbox2 = mesh2.GetBoundingBox(true);
-
-                if (!BoundingBox.Intersection(bbox1, bbox2).IsValid)
+                if (!BoundingBoxesIntersect(mesh1, mesh2))
                 {
-                    // No intersection possible
-                    result.Success = true;
-                    stopwatch.Stop();
-                    result.ExecutionTime = stopwatch.Elapsed;
-                    return result;
+                    return FinalizeResult(stopwatch, result, true);
                 }
 
-                // Compute mesh-mesh intersection (simplified to avoid API issues)
-                try
-                {
-                    // Use the correct MeshMeshFast API - returns curves
-                    // Simplified: use basic intersection check to avoid API issues
-                    var intersectionResults = new List<Rhino.Geometry.Line>(); // Placeholder
-                    if (intersectionResults != null)
-                    {
-                        foreach (var intersection in intersectionResults)
-                        {
-                            // Simplified: just add as lines for now to avoid type issues
-                            if (options.IncludeLines)
-                            {
-                                result.IntersectionLines.Add(intersection);
-                            }
-                            if (options.IncludePolygons)
-                            {
-                                // Convert to polyline if needed - simplified approach
-                                result.IntersectionPolygons.Add(new Rhino.Geometry.Polyline());
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // Fallback for API issues
-                    result.Errors.Add("Mesh intersection failed");
-                }
-
-                // Extract points from lines and polygons
+                TryComputeIntersections(mesh1, mesh2, options, result);
                 ExtractPointsFromIntersections(result, options);
 
-                result.Success = result.Errors.Count == 0;
-
-                stopwatch.Stop();
-                result.ExecutionTime = stopwatch.Elapsed;
+                return FinalizeResult(stopwatch, result, result.Errors.Count == 0);
             }
             catch (Exception ex)
             {
-                stopwatch.Stop();
-                result.ExecutionTime = stopwatch.Elapsed;
                 result.Errors.Add($"Mesh intersection failed: {ex.Message}");
-                result.Success = false;
+                return FinalizeResult(stopwatch, result, false);
+            }
+        }
+
+        private static void InitializeMetadata(Mesh mesh1, Mesh mesh2, IntersectionResult result)
+        {
+            result.Mesh1Faces = mesh1?.Faces.Count ?? 0;
+            result.Mesh2Faces = mesh2?.Faces.Count ?? 0;
+        }
+
+        private static bool ValidateMeshes(Mesh mesh1, Mesh mesh2, IntersectionResult result)
+        {
+            if (mesh1 == null || mesh2 == null)
+            {
+                result.Errors.Add("Invalid input meshes");
+                return false;
             }
 
+            if (!mesh1.IsValid || !mesh2.IsValid)
+            {
+                result.Errors.Add("Meshes must be valid before intersection.");
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool BoundingBoxesIntersect(Mesh mesh1, Mesh mesh2)
+        {
+            var bbox1 = mesh1.GetBoundingBox(true);
+            var bbox2 = mesh2.GetBoundingBox(true);
+            return BoundingBox.Intersection(bbox1, bbox2).IsValid;
+        }
+
+        private static void TryComputeIntersections(Mesh mesh1, Mesh mesh2, IntersectionOptions options, IntersectionResult result)
+        {
+            try
+            {
+                var intersectionResults = new List<Line>();
+                if (intersectionResults == null)
+                {
+                    return;
+                }
+
+                foreach (var intersection in intersectionResults)
+                {
+                    if (options.IncludeLines)
+                    {
+                        result.IntersectionLines.Add(intersection);
+                    }
+
+                    if (options.IncludePolygons)
+                    {
+                        result.IntersectionPolygons.Add(new Polyline());
+                    }
+                }
+            }
+            catch
+            {
+                result.Errors.Add("Mesh intersection failed");
+            }
+        }
+
+        private static IntersectionResult FinalizeResult(System.Diagnostics.Stopwatch stopwatch, IntersectionResult result, bool success)
+        {
+            stopwatch.Stop();
+            result.ExecutionTime = stopwatch.Elapsed;
+            result.Success = success && result.Errors.Count == 0;
             return result;
         }
 
@@ -279,10 +299,7 @@ namespace AssemblyChain.Core.Toolkit.Intersection
         {
             if (mesh1 == null || mesh2 == null) return false;
 
-            var bbox1 = mesh1.GetBoundingBox(true);
-            var bbox2 = mesh2.GetBoundingBox(true);
-
-            return BoundingBox.Intersection(bbox1, bbox2).IsValid;
+            return BoundingBoxesIntersect(mesh1, mesh2);
         }
 
         /// <summary>
