@@ -184,12 +184,54 @@ namespace AssemblyChain.Gh.Visualization
 
         public void Clear()
         {
-            Nodes.Clear();
-            Edges.Clear();
-            SccGroups.Clear();
-            KeyPieces.Clear();
-            Parts.Clear();
-            Contacts.Clear();
+            var buffers = new VisualizationBuffers(Nodes, Edges, SccGroups, KeyPieces, Parts, Contacts);
+            buffers.ClearAll();
+        }
+
+        private readonly struct VisualizationBuffers
+        {
+            private readonly ICollection<DBGNodeVis> _nodes;
+            private readonly ICollection<DBGEdgeVis> _edges;
+            private readonly ICollection<DBGSCCVis> _sccGroups;
+            private readonly ICollection<DBGKeyPieceVis> _keyPieces;
+            private readonly ICollection<DBGPartVis> _parts;
+            private readonly ICollection<DBGContactVis> _contacts;
+
+            public VisualizationBuffers(
+                ICollection<DBGNodeVis> nodes,
+                ICollection<DBGEdgeVis> edges,
+                ICollection<DBGSCCVis> sccGroups,
+                ICollection<DBGKeyPieceVis> keyPieces,
+                ICollection<DBGPartVis> parts,
+                ICollection<DBGContactVis> contacts)
+            {
+                _nodes = nodes ?? Array.Empty<DBGNodeVis>();
+                _edges = edges ?? Array.Empty<DBGEdgeVis>();
+                _sccGroups = sccGroups ?? Array.Empty<DBGSCCVis>();
+                _keyPieces = keyPieces ?? Array.Empty<DBGKeyPieceVis>();
+                _parts = parts ?? Array.Empty<DBGPartVis>();
+                _contacts = contacts ?? Array.Empty<DBGContactVis>();
+            }
+
+            public void ClearAll()
+            {
+                ClearCollection(_nodes);
+                ClearCollection(_edges);
+                ClearCollection(_sccGroups);
+                ClearCollection(_keyPieces);
+                ClearCollection(_parts);
+                ClearCollection(_contacts);
+            }
+
+            private static void ClearCollection<T>(ICollection<T> collection)
+            {
+                if (collection == null || collection.Count == 0)
+                {
+                    return;
+                }
+
+                collection.Clear();
+            }
         }
 
         protected override void DrawForeground(DrawEventArgs e)
