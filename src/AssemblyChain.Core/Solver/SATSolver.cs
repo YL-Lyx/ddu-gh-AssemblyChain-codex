@@ -1,65 +1,34 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Contact;
-using Rhino.Geometry;
+// 改造目的：统一 SAT 求解器模板，委派后端并输出可行性结果。
+// 兼容性注意：提供旧类名兼容包装。
+using AssemblyChain.Core.Solver.Backends;
 
 namespace AssemblyChain.Core.Solver
 {
     /// <summary>
-    /// SAT (Satisfiability) solver.
-    /// Placeholder implementation.
+    /// SAT solver wrapper.
     /// </summary>
-    public sealed class SATsolver : ISolver
+    public sealed class SatSolver : BaseSolver
     {
-        public DgSolverModel Solve(
-            AssemblyModel assembly,
-            ContactModel contacts,
-            ConstraintModel constraints,
-            object options = null)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SatSolver"/> class.
+        /// </summary>
+        /// <param name="backend">Backend implementation.</param>
+        public SatSolver(ISolverBackend? backend = null)
+            : base("SAT", backend ?? new OrToolsBackend())
         {
-            var stopwatch = Stopwatch.StartNew();
+        }
+    }
 
-            try
-            {
-                var steps = new List<Step>();
-                var vectors = new List<Vector3d>();
-                var groups = new List<IReadOnlyList<int>>();
-
-                var result = new DgSolverModel(
-                    steps,
-                    vectors,
-                    groups,
-                    isFeasible: false,
-                    isOptimal: false,
-                    log: "SAT solver placeholder",
-                    solveTimeSeconds: stopwatch.Elapsed.TotalSeconds,
-                    solverType: "SAT",
-                    metadata: new Dictionary<string, object>()
-                );
-
-                stopwatch.Stop();
-                return result;
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                return new DgSolverModel(
-                    new List<Step>(),
-                    new List<Vector3d>(),
-                    new List<IReadOnlyList<int>>(),
-                    isFeasible: false,
-                    isOptimal: false,
-                    log: $"SAT exception: {ex.Message}",
-                    solveTimeSeconds: stopwatch.Elapsed.TotalSeconds,
-                    solverType: "SAT",
-                    metadata: new Dictionary<string, object>()
-                );
-            }
+    /// <summary>
+    /// Legacy casing preserved for compatibility.
+    /// </summary>
+    public sealed class SATsolver : SatSolver
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SATsolver"/> class.
+        /// </summary>
+        public SATsolver(ISolverBackend? backend = null) : base(backend)
+        {
         }
     }
 }
-
-
