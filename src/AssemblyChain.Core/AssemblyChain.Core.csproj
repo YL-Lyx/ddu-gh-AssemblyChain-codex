@@ -7,6 +7,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
     <PackageReference Include="RhinoCommon" Version="$(RhinoCommonVersion)" ExcludeAssets="runtime" />
     <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
+    <!-- To enable the native OR-Tools backend restore Google.OrTools (>=9.7) and compile with ORTOOLS_BACKEND defined. -->
   </ItemGroup>
 
 </Project>
