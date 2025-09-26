@@ -184,86 +184,175 @@ namespace AssemblyChain.Gh.Visualization
 
         public void Clear()
         {
-            Nodes.Clear();
-            Edges.Clear();
-            SccGroups.Clear();
-            KeyPieces.Clear();
-            Parts.Clear();
-            Contacts.Clear();
+            var buffers = new VisualizationBuffers(Nodes, Edges, SccGroups, KeyPieces, Parts, Contacts);
+            buffers.ClearAll();
+        }
+
+        private readonly struct VisualizationBuffers
+        {
+            private readonly ICollection<DBGNodeVis> _nodes;
+            private readonly ICollection<DBGEdgeVis> _edges;
+            private readonly ICollection<DBGSCCVis> _sccGroups;
+            private readonly ICollection<DBGKeyPieceVis> _keyPieces;
+            private readonly ICollection<DBGPartVis> _parts;
+            private readonly ICollection<DBGContactVis> _contacts;
+
+            public VisualizationBuffers(
+                ICollection<DBGNodeVis> nodes,
+                ICollection<DBGEdgeVis> edges,
+                ICollection<DBGSCCVis> sccGroups,
+                ICollection<DBGKeyPieceVis> keyPieces,
+                ICollection<DBGPartVis> parts,
+                ICollection<DBGContactVis> contacts)
+            {
+                _nodes = nodes ?? Array.Empty<DBGNodeVis>();
+                _edges = edges ?? Array.Empty<DBGEdgeVis>();
+                _sccGroups = sccGroups ?? Array.Empty<DBGSCCVis>();
+                _keyPieces = keyPieces ?? Array.Empty<DBGKeyPieceVis>();
+                _parts = parts ?? Array.Empty<DBGPartVis>();
+                _contacts = contacts ?? Array.Empty<DBGContactVis>();
+            }
+
+            public void ClearAll()
+            {
+                ClearCollection(_nodes);
+                ClearCollection(_edges);
+                ClearCollection(_sccGroups);
+                ClearCollection(_keyPieces);
+                ClearCollection(_parts);
+                ClearCollection(_contacts);
+            }
+
+            private static void ClearCollection<T>(ICollection<T> collection)
+            {
+                if (collection == null || collection.Count == 0)
+                {
+                    return;
+                }
+
+                collection.Clear();
+            }
         }
 
         protected override void DrawForeground(DrawEventArgs e)
         {
-            // SCC groups
-            if (ShowSCC)
+            DrawSccGroups(e);
+            DrawEdges(e);
+            DrawNodes(e);
+            DrawParts(e);
+            DrawContacts(e);
+        }
+
+        private void DrawSccGroups(DrawEventArgs e)
+        {
+            if (!ShowSCC)
             {
-                foreach (var scc in SccGroups)
-                {
-                    var alpha = (int)(Opacity * 50);
-                    var color = Color.FromArgb(alpha, scc.Color);
-                    e.Display.DrawCircle(new Circle(scc.Center, scc.Radius), color, 2);
-                }
+                return;
             }
 
-            // Edges
-            if (ShowEdges)
+            foreach (var scc in SccGroups)
             {
-                foreach (var edge in Edges)
-                {
-                    if (!edge.IsActive) continue;
-                    var alpha = (int)(Opacity * 255);
-                    var color = Color.FromArgb(alpha, edge.Color);
-                    e.Display.DrawLine(edge.FromPos, edge.ToPos, color, (int)EdgeWidth);
+                var alpha = (int)(Opacity * 50);
+                var color = Color.FromArgb(alpha, scc.Color);
+                e.Display.DrawCircle(new Circle(scc.Center, scc.Radius), color, 2);
+            }
+        }
 
-                    var direction = edge.ToPos - edge.FromPos;
-                    direction.Unitize();
-                    var arrowSize = NodeSize * 0.5;
-                    var arrowPos = edge.ToPos - direction * arrowSize;
-                    DrawArrow(e, arrowPos, direction, arrowSize, color);
-                }
+        private void DrawEdges(DrawEventArgs e)
+        {
+            if (!ShowEdges)
+            {
+                return;
             }
 
-            // Nodes
-            if (ShowNodes)
+            foreach (var edge in Edges)
             {
-                foreach (var node in Nodes)
+                if (!edge.IsActive)
                 {
-                    if (!node.IsActive) continue;
-                    var alpha = (int)(Opacity * 255);
-                    var color = Color.FromArgb(alpha, node.Color);
-                    var sphere = new Sphere(node.Position, NodeSize);
-                    e.Display.DrawSphere(sphere, color);
-                    var labelPos = node.Position + new Vector3d(0, 0, NodeSize * 1.5);
-                    e.Display.Draw2dText(node.Name, color, labelPos, true, TextSize);
+                    continue;
                 }
+
+                var alpha = (int)(Opacity * 255);
+                var color = Color.FromArgb(alpha, edge.Color);
+                e.Display.DrawLine(edge.FromPos, edge.ToPos, color, (int)EdgeWidth);
+
+                var direction = edge.ToPos - edge.FromPos;
+                direction.Unitize();
+                var arrowSize = NodeSize * 0.5;
+                var arrowPos = edge.ToPos - direction * arrowSize;
+                DrawArrow(e, arrowPos, direction, arrowSize, color);
+            }
+        }
+
+        private void DrawNodes(DrawEventArgs e)
+        {
+            if (!ShowNodes)
+            {
+                return;
             }
 
-            // Parts
-            if (ShowParts)
+            foreach (var node in Nodes)
             {
-                foreach (var part in Parts)
+                if (!node.IsActive)
                 {
-                    if (part.Mesh == null) continue;
-                    var alpha = (int)(Opacity * 128);
-                    var color = Color.FromArgb(alpha, part.Color);
-                    if (Wireframe)
-                        e.Display.DrawMeshWires(part.Mesh, color);
-                    else
-                        e.Display.DrawMeshShaded(part.Mesh, new DisplayMaterial(color));
+                    continue;
                 }
+
+                var alpha = (int)(Opacity * 255);
+                var color = Color.FromArgb(alpha, node.Color);
+                var sphere = new Sphere(node.Position, NodeSize);
+                e.Display.DrawSphere(sphere, color);
+                var labelPos = node.Position + new Vector3d(0, 0, NodeSize * 1.5);
+                e.Display.Draw2dText(node.Name, color, labelPos, true, TextSize);
+            }
+        }
+
+        private void DrawParts(DrawEventArgs e)
+        {
+            if (!ShowParts)
+            {
+                return;
             }
 
-            // Contacts
-            if (ShowContacts)
+            foreach (var part in Parts)
             {
-                foreach (var contact in Contacts)
+                if (part.Mesh == null)
                 {
-                    var alpha = (int)(Opacity * 120);
-                    var color = Color.FromArgb(alpha, contact.Color);
-                    if (contact.FaceMeshA != null)
-                        e.Display.DrawMeshShaded(contact.FaceMeshA, new DisplayMaterial(color));
-                    if (contact.FaceMeshB != null)
-                        e.Display.DrawMeshShaded(contact.FaceMeshB, new DisplayMaterial(color));
+                    continue;
+                }
+
+                var alpha = (int)(Opacity * 128);
+                var color = Color.FromArgb(alpha, part.Color);
+                if (Wireframe)
+                {
+                    e.Display.DrawMeshWires(part.Mesh, color);
+                }
+                else
+                {
+                    e.Display.DrawMeshShaded(part.Mesh, new DisplayMaterial(color));
+                }
+            }
+        }
+
+        private void DrawContacts(DrawEventArgs e)
+        {
+            if (!ShowContacts)
+            {
+                return;
+            }
+
+            foreach (var contact in Contacts)
+            {
+                var alpha = (int)(Opacity * 120);
+                var color = Color.FromArgb(alpha, contact.Color);
+                if (contact.FaceMeshA != null)
+                {
+                    e.Display.DrawMeshShaded(contact.FaceMeshA, new DisplayMaterial(color));
+                }
+
+                if (contact.FaceMeshB != null)
+                {
+                    e.Display.DrawMeshShaded(contact.FaceMeshB, new DisplayMaterial(color));
                 }
             }
         }
