@@ -32,6 +32,7 @@ AssemblyChain Codex brings together the computational backend for assembly reaso
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Workflow Standard](6A_Workflow_Standard.md)
+- [Core & Grasshopper Task Brief](docs/task-core-grasshopper-frontend.md)
 - Additional guides under `docs/`
 
 ## Contributing
