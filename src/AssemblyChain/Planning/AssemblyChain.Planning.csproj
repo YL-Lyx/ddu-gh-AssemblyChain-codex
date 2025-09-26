@@ -1,13 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>AssemblyChain.Geometry</AssemblyName>
+    <AssemblyName>AssemblyChain.Planning</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>$(BaseIntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Geometry.Abstractions\AssemblyChain.Geometry.Abstractions.csproj" />
-    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+    <ProjectReference Include="..\Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\Constraints\AssemblyChain.Constraints.csproj" />
+    <ProjectReference Include="..\Graphs\AssemblyChain.Graphs.csproj" />
+    <ProjectReference Include="..\Analysis\AssemblyChain.Analysis.csproj" />
     <PackageReference Include="RhinoCommon" Version="$(RhinoCommonVersion)" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

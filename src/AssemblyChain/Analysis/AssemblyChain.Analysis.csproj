@@ -1,11 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>AssemblyChain.Robotics</AssemblyName>
+    <AssemblyName>AssemblyChain.Analysis</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>$(BaseIntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Planning\AssemblyChain.Planning.csproj" />
+    <ProjectReference Include="..\Core\AssemblyChain.Core.csproj" />
   </ItemGroup>
 </Project>

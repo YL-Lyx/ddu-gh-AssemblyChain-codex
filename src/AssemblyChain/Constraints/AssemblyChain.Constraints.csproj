@@ -5,8 +5,8 @@
     <DocumentationFile>$(BaseIntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Geometry\AssemblyChain.Geometry.csproj" />
+    <ProjectReference Include="..\Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\Geometry\AssemblyChain.Geometry.csproj" />
     <PackageReference Include="RhinoCommon" Version="$(RhinoCommonVersion)" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

@@ -24,14 +24,14 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
-    <ProjectReference Include="..\AssemblyChain.IO\AssemblyChain.IO.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Geometry\AssemblyChain.Geometry.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Constraints\AssemblyChain.Constraints.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Graphs\AssemblyChain.Graphs.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Planning\AssemblyChain.Planning.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Analysis\AssemblyChain.Analysis.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Robotics\AssemblyChain.Robotics.csproj" />
+    <ProjectReference Include="..\Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\IO\AssemblyChain.IO.csproj" />
+    <ProjectReference Include="..\Geometry\AssemblyChain.Geometry.csproj" />
+    <ProjectReference Include="..\Constraints\AssemblyChain.Constraints.csproj" />
+    <ProjectReference Include="..\Graphs\AssemblyChain.Graphs.csproj" />
+    <ProjectReference Include="..\Planning\AssemblyChain.Planning.csproj" />
+    <ProjectReference Include="..\Analysis\AssemblyChain.Analysis.csproj" />
+    <ProjectReference Include="..\Robotics\AssemblyChain.Robotics.csproj" />
   </ItemGroup>
 
   <!-- Local DLL references for BulletSharp and dependencies -->

@@ -2,26 +2,26 @@
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core", "src\AssemblyChain.Core\AssemblyChain.Core.csproj", "{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core", "src\AssemblyChain\Core\AssemblyChain.Core.csproj", "{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Grasshopper", "src\AssemblyChain.Grasshopper\AssemblyChain.Gh.csproj", "{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Grasshopper", "src\AssemblyChain\Grasshopper\AssemblyChain.Gh.csproj", "{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Geometry.Abstractions", "src\AssemblyChain.Geometry.Abstractions\AssemblyChain.Geometry.Abstractions.csproj", "{B308A8D2-ED06-446F-99EB-F00CC428B87E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Geometry.Abstractions", "src\AssemblyChain\Geometry.Abstractions\AssemblyChain.Geometry.Abstractions.csproj", "{B308A8D2-ED06-446F-99EB-F00CC428B87E}"
 EndProject
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Geometry", "src\AssemblyChain.Geometry\AssemblyChain.Geometry.csproj", "{F0B6F4C0-619F-4955-A16F-363E5A8E984D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Geometry", "src\AssemblyChain\Geometry\AssemblyChain.Geometry.csproj", "{F0B6F4C0-619F-4955-A16F-363E5A8E984D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Constraints", "src\AssemblyChain.Constraints\AssemblyChain.Constraints.csproj", "{4C151503-9FAD-4727-AEEA-0616836AC020}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Constraints", "src\AssemblyChain\Constraints\AssemblyChain.Constraints.csproj", "{4C151503-9FAD-4727-AEEA-0616836AC020}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Graphs", "src\AssemblyChain.Graphs\AssemblyChain.Graphs.csproj", "{68A10861-34CF-457C-A100-BFF20C1597A1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Graphs", "src\AssemblyChain\Graphs\AssemblyChain.Graphs.csproj", "{68A10861-34CF-457C-A100-BFF20C1597A1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Planning", "src\AssemblyChain.Planning\AssemblyChain.Planning.csproj", "{7EB9F365-43F3-4A4A-94E7-C531D9326B56}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Planning", "src\AssemblyChain\Planning\AssemblyChain.Planning.csproj", "{7EB9F365-43F3-4A4A-94E7-C531D9326B56}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Analysis", "src\AssemblyChain.Analysis\AssemblyChain.Analysis.csproj", "{83CD3611-D380-43FA-90A9-F1896F93CADD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Analysis", "src\AssemblyChain\Analysis\AssemblyChain.Analysis.csproj", "{83CD3611-D380-43FA-90A9-F1896F93CADD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.IO", "src\AssemblyChain.IO\AssemblyChain.IO.csproj", "{FB5F5AD2-5D97-4946-A6A4-182BB18C974F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.IO", "src\AssemblyChain\IO\AssemblyChain.IO.csproj", "{FB5F5AD2-5D97-4946-A6A4-182BB18C974F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Robotics", "src\AssemblyChain.Robotics\AssemblyChain.Robotics.csproj", "{0C5781E5-D2FF-4824-A96B-D763AA082014}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Robotics", "src\AssemblyChain\Robotics\AssemblyChain.Robotics.csproj", "{0C5781E5-D2FF-4824-A96B-D763AA082014}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core.Tests", "tests\AssemblyChain.Core.Tests\AssemblyChain.Core.Tests.csproj", "{88E24E0E-C3DD-4C1A-A0BE-77DAFF1BFDCC}"
 EndProject
