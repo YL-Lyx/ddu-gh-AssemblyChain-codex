@@ -8,7 +8,7 @@ namespace AssemblyChain.Gh.Kernel
     /// <summary>
     /// Grasshopper Goo wrapper for unified Assembly
     /// </summary>
-    public class AcGhAssemblyWrapGoo : GH_Goo<Assembly>
+    public class AcGhAssemblyWrapGoo : AcGhGooBase<Assembly>
     {
         private AssemblyModel _cachedAssemblyModel;
         private string _cachedAssemblyHash = string.Empty;
@@ -18,25 +18,23 @@ namespace AssemblyChain.Gh.Kernel
         }
 
         public AcGhAssemblyWrapGoo(Assembly value)
+            : base(value)
         {
-            Value = value;
         }
 
-        public override IGH_Goo Duplicate()
+        protected override AcGhGooBase<Assembly> CreateInstance(Assembly value)
         {
-            return Value == null ? new AcGhAssemblyWrapGoo() : new AcGhAssemblyWrapGoo(Value);
+            return new AcGhAssemblyWrapGoo(value);
         }
 
-        public override bool IsValid => Value != null;
+        protected override AcGhGooBase<Assembly> CreateEmpty()
+        {
+            return new AcGhAssemblyWrapGoo();
+        }
 
         public override string TypeName => "Assembly";
 
         public override string TypeDescription => "AssemblyChain unified assembly";
-
-        public override string ToString()
-        {
-            return this.GetType().FullName;
-        }
 
         public override bool CastFrom(object source)
         {

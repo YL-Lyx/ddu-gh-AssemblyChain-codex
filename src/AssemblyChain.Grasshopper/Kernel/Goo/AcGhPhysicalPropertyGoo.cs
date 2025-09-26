@@ -6,23 +6,26 @@ namespace AssemblyChain.Gh.Kernel
     /// <summary>
     /// Grasshopper Goo wrapper for PhysicsProperties - physical properties only
     /// </summary>
-    public class AcGhPhysicalPropertyGoo : GH_Goo<PhysicsProperties>
+    public class AcGhPhysicalPropertyGoo : AcGhGooBase<PhysicsProperties>
     {
         public AcGhPhysicalPropertyGoo()
         {
         }
 
         public AcGhPhysicalPropertyGoo(PhysicsProperties value)
+            : base(value)
         {
-            Value = value;
         }
 
-        public override IGH_Goo Duplicate()
+        protected override AcGhGooBase<PhysicsProperties> CreateInstance(PhysicsProperties value)
         {
-            return Value == null ? new AcGhPhysicalPropertyGoo() : new AcGhPhysicalPropertyGoo(Value);
+            return new AcGhPhysicalPropertyGoo(value);
         }
 
-        public override bool IsValid => Value != null;
+        protected override AcGhGooBase<PhysicsProperties> CreateEmpty()
+        {
+            return new AcGhPhysicalPropertyGoo();
+        }
 
         public override string TypeName => "PhysicsProperties";
 

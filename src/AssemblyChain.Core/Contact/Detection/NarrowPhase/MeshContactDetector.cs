@@ -23,7 +23,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
     /// 5. 多算法自动降级
     /// 修复了编译错误：Part构造函数、属性访问权限、API调用等
     /// </summary>
-    public static class MeshContactDetector
+    public static partial class MeshContactDetector
     {
         #region 增强的配置选项
 
@@ -673,98 +673,6 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
 
         #endregion
 
-
-        #region 测试工具类（修复了Part构造函数问题）
-
-        /// <summary>
-        /// 网格接触检测的测试工具
-        /// </summary>
-        public static class MeshContactTestUtilities
-        {
-            /// <summary>
-            /// 创建测试用立方体网格
-            /// </summary>
-            public static Mesh CreateTestCube(Point3d center, double size)
-            {
-                var mesh = new Mesh();
-                var half = size * 0.5;
-
-                // 添加顶点
-                mesh.Vertices.Add(center.X - half, center.Y - half, center.Z - half); // 0
-                mesh.Vertices.Add(center.X + half, center.Y - half, center.Z - half); // 1  
-                mesh.Vertices.Add(center.X + half, center.Y + half, center.Z - half); // 2
-                mesh.Vertices.Add(center.X - half, center.Y + half, center.Z - half); // 3
-                mesh.Vertices.Add(center.X - half, center.Y - half, center.Z + half); // 4
-                mesh.Vertices.Add(center.X + half, center.Y - half, center.Z + half); // 5
-                mesh.Vertices.Add(center.X + half, center.Y + half, center.Z + half); // 6
-                mesh.Vertices.Add(center.X - half, center.Y + half, center.Z + half); // 7
-
-                // 添加面（立方体的6个面）
-                mesh.Faces.AddFace(0, 1, 2, 3); // 底面
-                mesh.Faces.AddFace(4, 7, 6, 5); // 顶面
-                mesh.Faces.AddFace(0, 4, 5, 1); // 前面
-                mesh.Faces.AddFace(2, 6, 7, 3); // 后面
-                mesh.Faces.AddFace(0, 3, 7, 4); // 左面
-                mesh.Faces.AddFace(1, 5, 6, 2); // 右面
-
-                mesh.Normals.ComputeNormals();
-                mesh.FaceNormals.ComputeFaceNormals();
-                mesh.Compact();
-
-                return mesh;
-            }
-
-            /// <summary>
-            /// 运行基本的接触检测测试（使用现有Part实例）
-            /// </summary>
-            public static void RunBasicContactTest(Part partA, Part partB)
-            {
-                System.Diagnostics.Debug.WriteLine("=== Running Basic Contact Test ===");
-
-                var options = EnhancedDetectionOptions.CreatePreset(EnhancedDetectionOptions.QualityPreset.Balanced);
-                options.EnablePerformanceMonitoring = true;
-
-                var contacts = DetectMeshContactsEnhanced(partA, partB, options);
-
-                System.Diagnostics.Debug.WriteLine($"Test completed. Found {contacts.Count} contacts:");
-                foreach (var contact in contacts)
-                {
-                    System.Diagnostics.Debug.WriteLine($"  - {contact.Type}: Area/Length = {contact.Zone.Area:F6}/{contact.Zone.Length:F6}");
-                }
-
-                System.Diagnostics.Debug.WriteLine("=== Basic Contact Test Completed ===");
-            }
-
-            /// <summary>
-            /// 性能测试（使用现有Part实例）
-            /// </summary>
-            public static void RunPerformanceTest(Part partA, Part partB)
-            {
-                System.Diagnostics.Debug.WriteLine("=== Running Performance Test ===");
-
-                var testCases = new[]
-                {
-                    ("Fast", EnhancedDetectionOptions.QualityPreset.Fast),
-                    ("Balanced", EnhancedDetectionOptions.QualityPreset.Balanced),
-                    ("Precise", EnhancedDetectionOptions.QualityPreset.Precise)
-                };
-
-                foreach (var (name, preset) in testCases)
-                {
-                    var options = EnhancedDetectionOptions.CreatePreset(preset);
-                    options.EnablePerformanceMonitoring = true;
-
-                    var startTime = DateTime.Now;
-                    var contacts = DetectMeshContactsEnhanced(partA, partB, options);
-                    var endTime = DateTime.Now;
-
-                    var duration = (endTime - startTime).TotalMilliseconds;
-                    System.Diagnostics.Debug.WriteLine($"{name} preset: {contacts.Count} contacts in {duration:F2}ms");
-                }
-
-                System.Diagnostics.Debug.WriteLine("=== Performance Test Completed ===");
-            }
-        }
 
         #endregion
     }

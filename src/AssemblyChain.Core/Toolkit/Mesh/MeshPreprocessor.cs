@@ -9,73 +9,8 @@ namespace AssemblyChain.Core.Toolkit.Mesh
     /// Advanced mesh preprocessor - refactored modular design
     /// Orchestrates mesh validation, repair, optimization and standardization
     /// </summary>
-    public static class MeshPreprocessor
+    public static partial class MeshPreprocessor
     {
-        /// <summary>
-        /// Mesh preprocessing options
-        /// </summary>
-        public class PreprocessingOptions
-        {
-            public double Tolerance { get; set; } = 1e-6;
-            public bool ValidateMesh { get; set; } = true;
-            public Preprocessing.MeshValidator.ValidationOptions ValidationOptions { get; set; } = new();
-
-            public bool RepairMesh { get; set; } = true;
-            public Preprocessing.MeshRepair.RepairOptions RepairOptions { get; set; } = new();
-
-            public bool OptimizeMesh { get; set; } = true;
-            public Preprocessing.MeshOptimizer.OptimizationOptions OptimizationOptions { get; set; } = new();
-
-            public bool TriangulateQuads { get; set; } = true;
-            public int MaxFaceCount { get; set; } = 10000;
-            public bool ComputeNormals { get; set; } = true;
-
-            public static PreprocessingOptions CreateBalanced()
-            {
-                return new PreprocessingOptions
-                {
-                    ValidateMesh = true,
-                    RepairMesh = true,
-                    OptimizeMesh = true,
-                    TriangulateQuads = true,
-                    ComputeNormals = true
-                };
-            }
-
-            public static PreprocessingOptions CreateFast()
-            {
-                return new PreprocessingOptions
-                {
-                    ValidateMesh = false,
-                    RepairMesh = false,
-                    OptimizeMesh = false,
-                    TriangulateQuads = false,
-                    ComputeNormals = false
-                };
-            }
-        }
-
-        /// <summary>
-        /// Preprocessing result
-        /// </summary>
-        public class PreprocessingResult
-        {
-            public Rhino.Geometry.Mesh ProcessedMesh { get; set; }
-            public bool IsValid { get; set; }
-            public string Report { get; set; }
-            public int OriginalFaceCount { get; set; }
-            public int ProcessedFaceCount { get; set; }
-            public int OriginalVertexCount { get; set; }
-            public int ProcessedVertexCount { get; set; }
-            public List<string> Warnings { get; set; } = new List<string>();
-            public List<string> Errors { get; set; } = new List<string>();
-
-            // Sub-operation results
-            public Preprocessing.MeshValidator.ValidationResult ValidationResult { get; set; }
-            public Preprocessing.MeshRepair.RepairResult RepairResult { get; set; }
-            public Preprocessing.MeshOptimizer.OptimizationResult OptimizationResult { get; set; }
-        }
-
         /// <summary>
         /// Preprocesses mesh using modular components
         /// </summary>

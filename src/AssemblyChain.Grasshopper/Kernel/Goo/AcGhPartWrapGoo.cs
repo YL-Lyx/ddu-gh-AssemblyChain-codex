@@ -8,15 +8,25 @@ namespace AssemblyChain.Gh.Kernel
     /// <summary>
     /// Unified Grasshopper Goo wrapper for Parts - handles both geometry-only and physics-enabled parts
     /// </summary>
-    public class AcGhPartWrapGoo : GH_Goo<object>
+    public class AcGhPartWrapGoo : AcGhGooBase<object>
     {
         public AcGhPartWrapGoo()
         {
         }
 
         public AcGhPartWrapGoo(object value)
+            : base(value)
         {
-            Value = value;
+        }
+
+        protected override AcGhGooBase<object> CreateInstance(object value)
+        {
+            return new AcGhPartWrapGoo(value);
+        }
+
+        protected override AcGhGooBase<object> CreateEmpty()
+        {
+            return new AcGhPartWrapGoo();
         }
 
         /// <summary>
@@ -65,11 +75,6 @@ namespace AssemblyChain.Gh.Kernel
                     return new Part(geometry.IndexId, geometry.Name, geometry);
                 return null;
             }
-        }
-
-        public override IGH_Goo Duplicate()
-        {
-            return Value == null ? new AcGhPartWrapGoo() : new AcGhPartWrapGoo(Value);
         }
 
         public override bool IsValid => Value != null && Geometry?.HasValidGeometry == true;
