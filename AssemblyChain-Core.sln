@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core", "src\A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Grasshopper", "src\AssemblyChain.Grasshopper\AssemblyChain.Gh.csproj", "{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Geometry.Abstractions", "src\AssemblyChain.Geometry.Abstractions\AssemblyChain.Geometry.Abstractions.csproj", "{B308A8D2-ED06-446F-99EB-F00CC428B87E}"
+EndProject
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Geometry", "src\AssemblyChain.Geometry\AssemblyChain.Geometry.csproj", "{F0B6F4C0-619F-4955-A16F-363E5A8E984D}"
 EndProject
@@ -75,6 +77,10 @@ Global
                 {B5E2D0F2-5B6F-4B18-8F93-3A40989B3909}.Debug|Any CPU.Build.0 = Debug|Any CPU
                 {B5E2D0F2-5B6F-4B18-8F93-3A40989B3909}.Release|Any CPU.ActiveCfg = Release|Any CPU
                 {B5E2D0F2-5B6F-4B18-8F93-3A40989B3909}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B308A8D2-ED06-446F-99EB-F00CC428B87E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B308A8D2-ED06-446F-99EB-F00CC428B87E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B308A8D2-ED06-446F-99EB-F00CC428B87E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B308A8D2-ED06-446F-99EB-F00CC428B87E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

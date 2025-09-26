@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\AssemblyChain.Geometry.Abstractions\AssemblyChain.Geometry.Abstractions.csproj" />
     <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
     <PackageReference Include="RhinoCommon" Version="$(RhinoCommonVersion)" ExcludeAssets="runtime" />
   </ItemGroup>
