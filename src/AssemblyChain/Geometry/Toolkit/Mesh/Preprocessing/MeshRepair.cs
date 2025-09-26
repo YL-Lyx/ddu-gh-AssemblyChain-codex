@@ -95,34 +95,30 @@ namespace AssemblyChain.Geometry.Toolkit.Mesh.Preprocessing
                     return;
                 }
 
-                // Group naked edges into loops
-                // TODO: Fix edge loop detection - nakedEdges type issue
-                var edgeLoops = new List<List<int>>(); // Temporarily disable
+                var edgeLoops = ExtractLoopsFromNakedEdges(nakedEdges, mesh, options.Tolerance);
 
                 foreach (var loop in edgeLoops)
                 {
-                    if (loop.Count < 3)
+                    if (loop.VertexIndices.Count < 3)
                     {
-                        result.Warnings.Add($"Skipping degenerate hole with {loop.Count} edges");
+                        result.Warnings.Add($"Skipping degenerate hole with {loop.VertexIndices.Count} vertices");
                         continue;
                     }
 
-                    // Check hole size
-                    var holeArea = CalculateLoopArea(loop, mesh);
+                    var holeArea = CalculateLoopArea(loop.Points);
                     if (holeArea > options.MaxHoleSize)
                     {
                         result.Warnings.Add($"Skipping large hole (area: {holeArea:F6}, max: {options.MaxHoleSize:F6})");
                         continue;
                     }
 
-                    // Try to fill the hole
-                    if (TryFillHole(mesh, loop))
+                    if (TryFillHole(mesh, loop.VertexIndices))
                     {
                         result.HolesFilled++;
                     }
                     else
                     {
-                        result.Warnings.Add($"Failed to fill hole with {loop.Count} edges");
+                        result.Warnings.Add($"Failed to fill hole with {loop.VertexIndices.Count} vertices");
                     }
                 }
 
@@ -209,113 +205,40 @@ namespace AssemblyChain.Geometry.Toolkit.Mesh.Preprocessing
             result.Warnings.Add("Naked edge healing is not implemented in this version");
         }
 
-        private static List<List<int>> GroupNakedEdgesIntoLoops(int[] nakedEdges, double tolerance)
-        {
-            var loops = new List<List<int>>();
-            var processed = new HashSet<int>();
-
-            for (int i = 0; i < nakedEdges.Length; i += 2)
-            {
-                if (processed.Contains(i)) continue;
-
-                var loop = new List<int> { nakedEdges[i], nakedEdges[i + 1] };
-                processed.Add(i);
-                processed.Add(i + 1);
-
-                // Try to extend the loop
-                bool extended = true;
-                while (extended)
-                {
-                    extended = false;
-
-                    // Find edges that connect to the current loop
-                    for (int j = 0; j < nakedEdges.Length; j += 2)
-                    {
-                        if (processed.Contains(j)) continue;
-
-                        var edgeStart = nakedEdges[j];
-                        var edgeEnd = nakedEdges[j + 1];
-
-                        // Check if this edge connects to the loop
-                        if (loop[0] == edgeEnd && loop[^1] == edgeStart)
-                        {
-                            // Insert at beginning
-                            loop.Insert(0, edgeStart);
-                            loop.Insert(0, edgeEnd);
-                            processed.Add(j);
-                            processed.Add(j + 1);
-                            extended = true;
-                            break;
-                        }
-                        else if (loop[^1] == edgeStart && loop[0] == edgeEnd)
-                        {
-                            // Insert at end
-                            loop.Add(edgeStart);
-                            loop.Add(edgeEnd);
-                            processed.Add(j);
-                            processed.Add(j + 1);
-                            extended = true;
-                            break;
-                        }
-                        else if (loop[0] == edgeStart && loop[^1] == edgeEnd)
-                        {
-                            // Reverse and insert at beginning
-                            loop.Insert(0, edgeEnd);
-                            loop.Insert(0, edgeStart);
-                            processed.Add(j);
-                            processed.Add(j + 1);
-                            extended = true;
-                            break;
-                        }
-                        else if (loop[^1] == edgeEnd && loop[0] == edgeStart)
-                        {
-                            // Reverse and insert at end
-                            loop.Add(edgeEnd);
-                            loop.Add(edgeStart);
-                            processed.Add(j);
-                            processed.Add(j + 1);
-                            extended = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (loop.Count >= 4) // At least 2 edges
-                {
-                    loops.Add(loop);
-                }
-            }
-
-            return loops;
-        }
-
-        private static double CalculateLoopArea(List<int> loop, Rhino.Geometry.Mesh mesh)
+        private static double CalculateLoopArea(IReadOnlyList<Point3d> points)
         {
             try
             {
-                // Convert vertex indices to points
-                var points = new List<Point3d>();
-                foreach (var vertexIndex in loop)
+                if (points == null || points.Count < 3)
                 {
-                    points.Add(mesh.Vertices[vertexIndex]);
+                    return 0.0;
                 }
 
-                if (points.Count < 3) return 0.0;
-
-                // Calculate area using shoelace formula
-                double area = 0.0;
-                for (int i = 0; i < points.Count; i++)
+                if (!Plane.FitPlaneToPoints(points, out var plane))
                 {
-                    var j = (i + 1) % points.Count;
-                    area += points[i].X * points[j].Y;
-                    area -= points[j].X * points[i].Y;
+                    return double.MaxValue;
+                }
+
+                var projected = new List<Point2d>(points.Count);
+                foreach (var point in points)
+                {
+                    plane.ClosestPoint(point, out double u, out double v);
+                    projected.Add(new Point2d(u, v));
+                }
+
+                double area = 0.0;
+                for (int i = 0; i < projected.Count; i++)
+                {
+                    var j = (i + 1) % projected.Count;
+                    area += projected[i].X * projected[j].Y;
+                    area -= projected[j].X * projected[i].Y;
                 }
 
                 return System.Math.Abs(area) / 2.0;
             }
             catch
             {
-                return double.MaxValue; // Return large area to prevent filling
+                return double.MaxValue;
             }
         }
 
@@ -323,31 +246,110 @@ namespace AssemblyChain.Geometry.Toolkit.Mesh.Preprocessing
         {
             try
             {
-                // Simple triangulation approach
-                if (loop.Count == 4) // Triangle hole
+                if (loop == null || loop.Count < 3)
+                {
+                    return false;
+                }
+
+                if (loop.Count == 3)
                 {
                     mesh.Faces.AddFace(loop[0], loop[1], loop[2]);
-                    return true;
                 }
-                else if (loop.Count == 6) // Quad hole
+                else if (loop.Count == 4)
                 {
                     mesh.Faces.AddFace(loop[0], loop[1], loop[2], loop[3]);
-                    return true;
                 }
                 else
                 {
-                    // For more complex holes, use a simple fan triangulation
-                    for (int i = 2; i < loop.Count; i++)
+                    for (int i = 1; i < loop.Count - 1; i++)
                     {
-                        mesh.Faces.AddFace(loop[0], loop[i - 1], loop[i]);
+                        mesh.Faces.AddFace(loop[0], loop[i], loop[i + 1]);
                     }
-                    return true;
                 }
+
+                mesh.Normals.ComputeNormals();
+                mesh.Compact();
+                return true;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static List<MeshHoleLoop> ExtractLoopsFromNakedEdges(Polyline[] nakedEdges, Rhino.Geometry.Mesh mesh, double tolerance)
+        {
+            var loops = new List<MeshHoleLoop>();
+
+            if (nakedEdges == null)
+            {
+                return loops;
+            }
+
+            foreach (var edgeLoop in nakedEdges)
+            {
+                if (edgeLoop == null || edgeLoop.Count < 4)
+                {
+                    continue;
+                }
+
+                var vertexIndices = new List<int>();
+                var points = new List<Point3d>();
+                int count = edgeLoop.IsClosed ? edgeLoop.Count - 1 : edgeLoop.Count;
+
+                for (int i = 0; i < count; i++)
+                {
+                    var point = edgeLoop[i];
+                    var vertexIndex = FindOrCreateVertexIndex(mesh, point, tolerance);
+
+                    if (vertexIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    points.Add(point);
+                    vertexIndices.Add(vertexIndex);
+                }
+
+                if (vertexIndices.Count >= 3)
+                {
+                    loops.Add(new MeshHoleLoop(vertexIndices, points));
+                }
+            }
+
+            return loops;
+        }
+
+        private static int FindOrCreateVertexIndex(Rhino.Geometry.Mesh mesh, Point3d point, double tolerance)
+        {
+            var meshPoint = mesh.ClosestMeshPoint(point, tolerance);
+            if (meshPoint != null && meshPoint.VertexIndex >= 0)
+            {
+                return meshPoint.VertexIndex;
+            }
+
+            for (int i = 0; i < mesh.Vertices.Count; i++)
+            {
+                if (mesh.Vertices[i].ToPoint3d().DistanceTo(point) <= tolerance)
+                {
+                    return i;
+                }
+            }
+
+            mesh.Vertices.Add(point);
+            return mesh.Vertices.Count - 1;
+        }
+
+        private class MeshHoleLoop
+        {
+            public MeshHoleLoop(List<int> vertexIndices, List<Point3d> points)
+            {
+                VertexIndices = vertexIndices;
+                Points = points;
+            }
+
+            public List<int> VertexIndices { get; }
+            public List<Point3d> Points { get; }
         }
 
         private static string GetFaceSignature(MeshFace face)
