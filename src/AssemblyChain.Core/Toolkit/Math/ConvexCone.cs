@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
+using AssemblyChain.Core.Contracts;
 
 namespace AssemblyChain.Core.Toolkit.Math
 {
@@ -10,6 +11,16 @@ namespace AssemblyChain.Core.Toolkit.Math
     /// </summary>
     public static class ConvexCone
     {
+        private static IVectorOps _vectorOps = new VectorOps();
+
+        /// <summary>
+        /// Configures the vector operations provider used by cone computations.
+        /// </summary>
+        public static void ConfigureVectorOps(IVectorOps vectorOps)
+        {
+            _vectorOps = vectorOps ?? throw new ArgumentNullException(nameof(vectorOps));
+        }
+
         /// <summary>
         /// Represents a halfspace defined by ax + by + cz <= d
         /// </summary>
@@ -147,7 +158,7 @@ namespace AssemblyChain.Core.Toolkit.Math
                 var ray1 = extremeRays[i];
                 var ray2 = extremeRays[(i + 1) % extremeRays.Count];
                 motionRays.Add(ray1);
-                var angle = LinearAlgebra.AngleBetween(ray1, ray2) * 180.0 / System.Math.PI;
+                var angle = _vectorOps.AngleBetween(ray1, ray2) * 180.0 / System.Math.PI;
                 var numIntermediate = System.Math.Max(1, (int)(angle / minAngle));
                 for (int j = 1; j < numIntermediate; j++)
                 {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Domain.Common;
 using AssemblyChain.Core.Domain.ValueObjects;
 
@@ -8,7 +9,7 @@ namespace AssemblyChain.Core.Domain.Entities
     /// <summary>
     /// Domain entity representing a mechanical part
     /// </summary>
-    public class Part : Entity
+    public class Part : Entity, IPartGeometry
     {
         /// <summary>
         /// Name of the part
@@ -169,6 +170,12 @@ namespace AssemblyChain.Core.Domain.Entities
 
         // Placeholder for OriginalGeometryType (will be refined later)
         public string OriginalGeometryType => Geometry?.OriginalGeometryType ?? "Mesh";
+
+        /// <inheritdoc />
+        public double FrictionCoefficient => Material?.FrictionCoefficient ?? 0.5;
+
+        /// <inheritdoc />
+        public double RestitutionCoefficient => Material?.RestitutionCoefficient ?? 0.1;
     }
 }
 

@@ -23,7 +23,10 @@ namespace AssemblyChain.Core.Learning
                 throw new ArgumentNullException(nameof(request));
             }
 
-            AssemblyModel assembly = request.Assembly ?? throw new ArgumentException("Assembly is required", nameof(request));
+            if (request.Assembly is not AssemblyModel assembly)
+            {
+                throw new ArgumentException("AssemblyModel instance is required", nameof(request));
+            }
 
             var graspability = 0.5;
             if (request.Features != null && request.Features.TryGetValue("graspability", out var featureValue))

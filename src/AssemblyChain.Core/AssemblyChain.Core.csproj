@@ -4,6 +4,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AssemblyChain.Core.Contracts\AssemblyChain.Core.Contracts.csproj" />
     <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
     <PackageReference Include="RhinoCommon" Version="$(RhinoCommonVersion)" ExcludeAssets="runtime" />
     <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />

@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using AssemblyChain.Core.Contact;
 using AssemblyChain.Core.Contracts;
-using AssemblyChain.Core.Model;
 using Newtonsoft.Json;
 
 namespace AssemblyChain.Core.Data
@@ -22,9 +20,9 @@ namespace AssemblyChain.Core.Data
         /// <param name="options">Export options.</param>
         /// <returns>A summary of the exported dataset.</returns>
         public static DatasetExportResult Export(
-            AssemblyModel assembly,
-            ContactModel contacts,
-            DgSolverModel solverResult,
+            IModelQuery assembly,
+            IContactModel contacts,
+            ISolverModel solverResult,
             DatasetExportOptions options)
         {
             if (assembly == null)

@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 // Updated to use Domain architecture - types now in AssemblyChain.Core.Domain.*
 using Rhino.Geometry;
-using AssemblyChain.Core.Domain.Entities;
-using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Contact;
 
 namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
@@ -18,7 +17,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// 檢測一對物體之間的接觸
         /// </summary>
         public static List<ContactData> DetectContactsForPair(
-            Part A, Part B, double tol=1e-3, double minArea=0.0, double minEdgeLen=0.0, DetectionOptions options = default)
+            IPartGeometry A, IPartGeometry B, double tol=1e-3, double minArea=0.0, double minEdgeLen=0.0, DetectionOptions options = default)
         {
             var res = new List<ContactData>();
             if (!A.HasValidGeometry || !B.HasValidGeometry) return res;
@@ -70,7 +69,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
             return res;
         }
 
-        public static ContactData DetectContact(Part partA, Part partB)
+        public static ContactData DetectContact(IPartGeometry partA, IPartGeometry partB)
             => DetectContactsForPair(partA, partB).FirstOrDefault();
 
 

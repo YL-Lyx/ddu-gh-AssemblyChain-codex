@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
-using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Contact;
-using AssemblyChain.Core.Domain.Entities;
+using AssemblyChain.Core.Contracts;
 
 namespace AssemblyChain.Core.Toolkit.Brep
 {
@@ -324,8 +322,8 @@ namespace AssemblyChain.Core.Toolkit.Brep
         public static CoplanarContactResult DetectCoplanarContacts(
             Rhino.Geometry.Brep brepA,
             Rhino.Geometry.Brep brepB,
-            Domain.Entities.Part partA,
-            Domain.Entities.Part partB,
+            IPartGeometry partA,
+            IPartGeometry partB,
             DetectionOptions options)
         {
             var result = new CoplanarContactResult();
@@ -446,12 +444,12 @@ namespace AssemblyChain.Core.Toolkit.Brep
         /// Creates a contact data factory function.
         /// </summary>
         private static Func<GeometryBase, ContactType, Plane, ContactData> MakeContact(
-            Domain.Entities.Part A, Domain.Entities.Part B)
+            IPartGeometry A, IPartGeometry B)
         {
             return (geom, type, plane) =>
             {
-                var mu = 0.5 * (A.Material.FrictionCoefficient + B.Material.FrictionCoefficient);
-                var e = 0.5 * (A.Material.RestitutionCoefficient + B.Material.RestitutionCoefficient);
+                var mu = 0.5 * (A.FrictionCoefficient + B.FrictionCoefficient);
+                var e = 0.5 * (A.RestitutionCoefficient + B.RestitutionCoefficient);
                 double area = 0, len = 0;
                 if (geom is Rhino.Geometry.Brep gb) { using var amp = AreaMassProperties.Compute(gb); area = amp?.Area ?? 0; }
                 if (geom is Curve gc) len = gc.GetLength();

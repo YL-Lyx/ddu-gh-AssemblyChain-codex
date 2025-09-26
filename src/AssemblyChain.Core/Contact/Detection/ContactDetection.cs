@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
-using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Domain.Entities;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Contact.Detection.BroadPhase;
 using AssemblyChain.Core.Contact.Detection.NarrowPhase;
 
@@ -17,7 +16,7 @@ namespace AssemblyChain.Core.Contact
         /// <summary>
         /// 检测装配体中所有部件之间的接触
         /// </summary>
-        public static ContactModel DetectContacts(AssemblyModel assembly, DetectionOptions options)
+        public static ContactModel DetectContacts(IModelQuery assembly, DetectionOptions options)
         {
             System.Diagnostics.Debug.WriteLine($"\n========== ASSEMBLY CONTACT DETECTION START ==========");
             System.Diagnostics.Debug.WriteLine($"Assembly: {assembly.Name} ({assembly.PartCount} parts)");
@@ -71,7 +70,7 @@ namespace AssemblyChain.Core.Contact
         /// <summary>
         /// 检测零件列表中的所有接触
         /// </summary>
-        public static List<ContactData> DetectContacts(IReadOnlyList<Part> parts, DetectionOptions options)
+        public static List<ContactData> DetectContacts(IReadOnlyList<IPartGeometry> parts, DetectionOptions options)
         {
             System.Diagnostics.Debug.WriteLine($"\n========== PART LIST CONTACT DETECTION ==========");
             System.Diagnostics.Debug.WriteLine($"Parts: {parts.Count}");
@@ -111,6 +110,30 @@ namespace AssemblyChain.Core.Contact
             System.Diagnostics.Debug.WriteLine($"========== PART LIST DETECTION END ==========\n");
 
             return allContacts;
+        }
+    }
+
+    /// <summary>
+    /// Default implementation of the <see cref="IContactDetector"/> contract.
+    /// </summary>
+    public sealed class ContactDetector : IContactDetector
+    {
+        public IContactModel DetectContacts(IModelQuery assembly, DetectionOptions options)
+            => ContactDetection.DetectContacts(assembly, options ?? new DetectionOptions());
+
+        public IReadOnlyList<ContactData> DetectContacts(IReadOnlyList<IPartGeometry> parts, DetectionOptions options)
+            => ContactDetection.DetectContacts(parts, options ?? new DetectionOptions());
+
+        public IReadOnlyList<ContactData> DetectContactsForPair(IPartGeometry partA, IPartGeometry partB, DetectionOptions options)
+        {
+            var resolved = options ?? new DetectionOptions();
+            return NarrowPhaseDetection.DetectContactsForPair(
+                partA,
+                partB,
+                resolved.Tolerance,
+                resolved.MinPatchArea,
+                resolved.MinEdgeLength,
+                resolved);
         }
     }
 }

@@ -48,7 +48,7 @@ namespace AssemblyChain.Core.Toolkit.Utils
         /// </summary>
         private static IEnumerable<IReadOnlyList<int>> GenerateSubgroups(IReadOnlyList<int> members, int maxSize)
         {
-            for (int size = System.Math.Min(maxSize, members.Count); size >= 2; size--)
+            for (int size = Math.Min(maxSize, members.Count); size >= 2; size--)
             {
                 foreach (var combination in GenerateCombinations(members, size))
                 {
@@ -96,7 +96,7 @@ namespace AssemblyChain.Core.Toolkit.Utils
                 else if (fromIn || toIn) externalConnections++;
             }
 
-            return internalConnections / System.Math.Max(1, externalConnections + 1);
+            return internalConnections / Math.Max(1, externalConnections + 1);
         }
 
         /// <summary>

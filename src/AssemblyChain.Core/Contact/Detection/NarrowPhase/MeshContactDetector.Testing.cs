@@ -1,6 +1,6 @@
 using System;
 using Rhino.Geometry;
-using AssemblyChain.Core.Domain.Entities;
+using AssemblyChain.Core.Contracts;
 
 namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
 {
@@ -48,7 +48,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
             /// <summary>
             /// Runs a basic contact test with verbose logging.
             /// </summary>
-            public static void RunBasicContactTest(Part partA, Part partB)
+            public static void RunBasicContactTest(IPartGeometry partA, IPartGeometry partB)
             {
                 var options = MeshContactDetector.EnhancedDetectionOptions.CreatePreset(
                     MeshContactDetector.EnhancedDetectionOptions.QualityPreset.Balanced);
@@ -62,7 +62,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
             /// <summary>
             /// Runs a minimal performance comparison across presets.
             /// </summary>
-            public static void RunPerformanceTest(Part partA, Part partB)
+            public static void RunPerformanceTest(IPartGeometry partA, IPartGeometry partB)
             {
                 var presets = new[]
                 {

@@ -1,6 +1,4 @@
 using System;
-using AssemblyChain.Core.Contact;
-using AssemblyChain.Core.Model;
 
 namespace AssemblyChain.Core.Contracts
 {
@@ -14,7 +12,7 @@ namespace AssemblyChain.Core.Contracts
         /// </summary>
         /// <param name="contacts">Computed contact model.</param>
         /// <param name="solverResult">Sequence planning result.</param>
-        public AssemblyPlanResult(ContactModel contacts, DgSolverModel solverResult)
+        public AssemblyPlanResult(IContactModel contacts, ISolverModel solverResult)
         {
             Contacts = contacts ?? throw new ArgumentNullException(nameof(contacts));
             SolverResult = solverResult ?? throw new ArgumentNullException(nameof(solverResult));
@@ -23,11 +21,11 @@ namespace AssemblyChain.Core.Contracts
         /// <summary>
         /// Gets the contact model produced during processing.
         /// </summary>
-        public ContactModel Contacts { get; }
+        public IContactModel Contacts { get; }
 
         /// <summary>
         /// Gets the solver result produced during processing.
         /// </summary>
-        public DgSolverModel SolverResult { get; }
+        public ISolverModel SolverResult { get; }
     }
 }

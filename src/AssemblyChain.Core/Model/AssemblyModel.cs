@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Domain.Entities;
 using Rhino.Geometry;
 
@@ -10,7 +11,7 @@ namespace AssemblyChain.Core.Model
     /// Read-only assembly model.
     /// Contains parts, bounding box, index mapping, and version hash for caching.
     /// </summary>
-    public sealed class AssemblyModel
+    public sealed class AssemblyModel : IModelQuery
     {
         /// <summary>
         /// The parts that make up this assembly.
@@ -41,6 +42,14 @@ namespace AssemblyChain.Core.Model
         /// Total number of parts in the assembly.
         /// </summary>
         public int PartCount => Parts.Count;
+
+        IReadOnlyList<IPartGeometry> IModelQuery.Parts => Parts;
+
+        string IModelQuery.Name => Name;
+
+        string IModelQuery.Hash => Hash;
+
+        int IModelQuery.PartCount => PartCount;
 
         /// <summary>
         /// Whether the assembly has valid geometry.
