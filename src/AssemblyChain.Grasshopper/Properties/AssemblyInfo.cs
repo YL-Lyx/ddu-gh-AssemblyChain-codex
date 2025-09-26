@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Grasshopper.Kernel;
 
@@ -36,3 +37,4 @@ using Grasshopper.Kernel;
 [assembly: AssemblyFileVersion("0.2.0.0")]
 
 // Grasshopper assembly information
+[assembly: InternalsVisibleTo("AssemblyChain.Grasshopper.Tests")]

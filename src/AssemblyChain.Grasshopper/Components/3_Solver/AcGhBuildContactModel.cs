@@ -12,11 +12,17 @@ namespace AssemblyChain.Gh.Kernel
 {
     public class AcGhBuildContactModel : GH_Component
     {
-        private readonly AssemblyChainFacade _facade = new();
+        private readonly IAssemblyChainFacade _facade;
 
         public AcGhBuildContactModel()
+            : this(new AssemblyChainFacade())
+        {
+        }
+
+        internal AcGhBuildContactModel(IAssemblyChainFacade facade)
             : base("Build Contact Model", "BCM", "Build contact model from assembly using specified detection options", "AssemblyChain", "3|Solver")
         {
+            _facade = facade ?? throw new ArgumentNullException(nameof(facade));
         }
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
