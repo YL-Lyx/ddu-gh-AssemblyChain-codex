@@ -1,0 +1,49 @@
+{
+  "id": "simple-brick",
+  "parts": [
+    {
+      "id": "base",
+      "name": "Base",
+      "mass": 10.0,
+      "centerOfMass": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "geometry": [
+        {
+          "id": "base-face",
+          "type": "face",
+          "vertices": [
+            { "x": -0.5, "y": -0.5, "z": 0.0 },
+            { "x": 0.5, "y": -0.5, "z": 0.0 },
+            { "x": 0.5, "y": 0.5, "z": 0.0 },
+            { "x": -0.5, "y": 0.5, "z": 0.0 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "top",
+      "name": "Top",
+      "mass": 5.0,
+      "centerOfMass": { "x": 0.0, "y": 0.0, "z": 0.5 },
+      "geometry": [
+        {
+          "id": "top-face",
+          "type": "face",
+          "vertices": [
+            { "x": -0.4, "y": -0.4, "z": 0.5 },
+            { "x": 0.4, "y": -0.4, "z": 0.5 },
+            { "x": 0.4, "y": 0.4, "z": 0.5 },
+            { "x": -0.4, "y": 0.4, "z": 0.5 }
+          ]
+        }
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "id": "j1",
+      "partA": "base",
+      "partB": "top",
+      "type": "stack"
+    }
+  ]
+}

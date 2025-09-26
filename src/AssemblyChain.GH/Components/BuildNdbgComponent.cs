@@ -1,31 +1,36 @@
-#if GRASSHOPPER
-using GH_ComponentBase = Grasshopper.Kernel.GH_Component;
-#else
-using GH_ComponentBase = AssemblyChain.GH.Stubs.GhComponentBase;
+using AssemblyChain.Constraints;
+using AssemblyChain.GH.Data;
+using AssemblyChain.Geometry.ContactDetection;
+#if !GRASSHOPPER
+using AssemblyChain.GH.Stubs;
 #endif
+using AssemblyChain.Graphs;
 
 namespace AssemblyChain.GH.Components;
 
 /// <summary>
-/// Grasshopper component stub that will build a non-directional blocking graph once the core graph service lands.
+/// Builds the non-directional blocking graph from a set of contacts.
 /// </summary>
-public sealed class BuildNdbgComponent : GH_ComponentBase
+public sealed class BuildNdbgComponent : AssemblyChainComponentBase
 {
     public BuildNdbgComponent()
         : base("Build NDBG", "NDBG", "Build non-directional blocking graph", "AssemblyChain", "Graphs")
     {
     }
 
-    /// <summary>
-    /// Placeholder execution logic that documents the intended dependency on the core graph builder.
-    /// </summary>
-    public override void SolveInstance()
+    protected override void Solve(IGhDataAccess dataAccess)
     {
-#if GRASSHOPPER
-        // TODO: Wire up IGraphBuilder from AssemblyChain.Graphs once implemented.
-        throw new System.NotImplementedException("Graph builder integration pending.");
-#else
-        base.SolveInstance();
-#endif
+        var assemblyWrapper = dataAccess.GetInput<GhAssembly>(0);
+        var contactsWrapper = dataAccess.GetInput<GhContacts>(1);
+        if (assemblyWrapper is null || contactsWrapper is null)
+        {
+            dataAccess.SetOutput(0, default(GhGraph));
+            return;
+        }
+
+        var cones = new DirectionConeBuilder().BuildCones(assemblyWrapper.Value, contactsWrapper.Value);
+        var graph = new NonDirectionalBlockingGraphBuilder().Build(assemblyWrapper.Value, cones);
+        dataAccess.SetOutput(0, new GhGraph(graph));
+        dataAccess.SetOutput(1, new GhDirectionCones(cones));
     }
 }

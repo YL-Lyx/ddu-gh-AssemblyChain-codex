@@ -22,6 +22,39 @@ public abstract class GhComponentBase
     public string Category { get; }
     public string SubCategory { get; }
 
-    public virtual void SolveInstance() => throw new System.NotImplementedException("Grasshopper runtime not available in stub build.");
+    public abstract void SolveInstance(IGhDataAccess dataAccess);
+}
+
+/// <summary>
+/// Minimal data access helper that mirrors Grasshopper's IGH_DataAccess semantics for tests.
+/// </summary>
+public sealed class GhDataAccess : Components.IGhDataAccess
+{
+    private readonly System.Collections.Generic.Dictionary<int, object?> _inputs = new();
+    private readonly System.Collections.Generic.Dictionary<int, object?> _outputs = new();
+
+    public void SetInput<T>(int index, T value) => _inputs[index] = value;
+
+    public T? GetInput<T>(int index)
+    {
+        if (_inputs.TryGetValue(index, out var value) && value is T typed)
+        {
+            return typed;
+        }
+
+        return default;
+    }
+
+    public void SetOutput<T>(int index, T value) => _outputs[index] = value;
+
+    public T? GetOutput<T>(int index)
+    {
+        if (_outputs.TryGetValue(index, out var value) && value is T typed)
+        {
+            return typed;
+        }
+
+        return default;
+    }
 }
 #endif

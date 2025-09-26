@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>AssemblyChain.Graphs</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(BaseIntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\AssemblyChain.Constraints\AssemblyChain.Constraints.csproj" />
+  </ItemGroup>
+</Project>
