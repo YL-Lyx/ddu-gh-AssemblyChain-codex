@@ -1,9 +1,0 @@
-{
-  "name": "simple-plan",
-  "isValid": true,
-  "steps": [
-    { "index": 0, "action": "Place", "partId": "base" },
-    { "index": 1, "action": "Place", "partId": "top" }
-  ],
-  "diagnostics": []
-}
