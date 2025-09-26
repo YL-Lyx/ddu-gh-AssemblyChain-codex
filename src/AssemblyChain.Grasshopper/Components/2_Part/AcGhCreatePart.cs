@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
@@ -17,7 +18,7 @@ namespace AssemblyChain.Gh.Kernel
         private enum GeometryInputMode { Mesh, Brep }
 
         private GeometryInputMode _inputMode = GeometryInputMode.Mesh;
-        private bool _includePhysics = false;
+        private bool _includePhysics;
 
         public AcGhCreatePart()
             : base("Create Part", "CP", "Create Part objects with flexible geometry input and optional physics properties.", "AssemblyChain", "2|Part")
@@ -46,163 +47,282 @@ namespace AssemblyChain.Gh.Kernel
         {
             try
             {
-                // Validate input connections
                 if (!ValidateInputConnections())
                 {
                     return;
                 }
 
-                string name = string.Empty;
-                DA.GetData(0, ref name);
-                name = name?.Trim() ?? string.Empty;
+                var adapter = new GhDataAccessAdapter(DA, _includePhysics);
+                var options = ParseInput(adapter);
 
-                var results = new List<object>();
-                int successCount = 0, failureCount = 0;
-
-                // Get physics properties if enabled
-                PhysicsProperties physicsProperties = null;
-                if (_includePhysics)
+                if (!Validate(options))
                 {
-                    var physicsGoo = new AcGhPhysicalPropertyGoo();
-                    if (DA.GetData(2, ref physicsGoo) && physicsGoo.Value != null)
-                    {
-                        physicsProperties = physicsGoo.Value;
-                    }
+                    return;
                 }
 
-                if (_inputMode == GeometryInputMode.Mesh)
-                {
-                    var meshes = new List<GH_Mesh>();
-                    if (!DA.GetDataList(1, meshes) || meshes.Count == 0)
-                    {
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No mesh geometry provided.");
-                        return;
-                    }
-
-                    for (int i = 0; i < meshes.Count; i++)
-                    {
-                        try
-                        {
-                            var m = meshes[i]?.Value?.DuplicateMesh();
-                            if (m == null || !m.IsValid)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Invalid mesh at index {i}, skipping.");
-                                continue;
-                            }
-                            m.Normals.ComputeNormals();
-
-                            var partName = !string.IsNullOrEmpty(name) ? $"{name}_{i}" : $"Part_{i}";
-                            var pg = new PartGeometry(i, m, partName, meshes[i]?.Value, "Mesh");
-
-                            object partData;
-                            if (_includePhysics && physicsProperties != null)
-                            {
-                                var part = new Part(i, partName, pg, physicsProperties);
-                                partData = part;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with physics: mass={physicsProperties.Mass:F3}kg, friction={physicsProperties.Friction:F2}");
-                            }
-                            else
-                            {
-                                partData = pg; // Store PartGeometry directly
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with {m.Vertices.Count} vertices, {m.Faces.Count} faces");
-                            }
-
-                            results.Add(partData);
-                            successCount++;
-                        }
-                        catch (Exception ex)
-                        {
-                            failureCount++;
-                            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Error at index {i}: {ex.Message}");
-                        }
-                    }
-                }
-                else // Brep
-                {
-                    var breps = new List<GH_Brep>();
-                    int inputIndex = _includePhysics ? 1 : 1;
-                    if (!DA.GetDataList(inputIndex, breps) || breps.Count == 0)
-                    {
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No brep geometry provided.");
-                        return;
-                    }
-
-                    for (int i = 0; i < breps.Count; i++)
-                    {
-                        try
-                        {
-                            var b = breps[i]?.Value;
-                            if (b == null || !b.IsValid)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Invalid brep at index {i}, skipping.");
-                                continue;
-                            }
-
-                            var brepMeshes = Mesh.CreateFromBrep(b, MeshingParameters.Default);
-                            if (brepMeshes == null || brepMeshes.Length == 0)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Meshing failed at index {i}, skipping.");
-                                continue;
-                            }
-
-                            var mesh = new Mesh();
-                            foreach (var m in brepMeshes)
-                            {
-                                if (m != null) mesh.Append(m);
-                            }
-                            if (!mesh.IsValid)
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Generated mesh invalid at index {i}, skipping.");
-                                continue;
-                            }
-                            mesh.Normals.ComputeNormals();
-
-                            var partName = !string.IsNullOrEmpty(name) ? $"{name}_{i}" : $"Part_{i}";
-                            var pg = new PartGeometry(i, mesh, partName, breps[i]?.Value, "Brep");
-
-                            object partData;
-                            if (_includePhysics && physicsProperties != null)
-                            {
-                                var part = new Part(i, partName, pg, physicsProperties);
-                                partData = part;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with physics: mass={physicsProperties.Mass:F3}kg, friction={physicsProperties.Friction:F2}");
-                            }
-                            else
-                            {
-                                partData = pg; // Store PartGeometry directly
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
-                                    $"Created Part '{partName}' with {mesh.Vertices.Count} vertices, {mesh.Faces.Count} faces");
-                            }
-
-                            results.Add(partData);
-                            successCount++;
-                        }
-                        catch (Exception ex)
-                        {
-                            failureCount++;
-                            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Error at index {i}: {ex.Message}");
-                        }
-                    }
-                }
-
-                var report = $"Created {successCount} Part objects";
-                if (failureCount > 0) report += $", {failureCount} failed";
-                if (_includePhysics && physicsProperties != null) report += " (with physics)";
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, report);
-
-                var goos = results.ConvertAll(p => new AcGhPartWrapGoo(p));
-                DA.SetDataList(0, goos);
+                var result = Build(options);
+                Output(adapter, result);
             }
             catch (Exception ex)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        internal PartOptions ParseInput(IPartDataAccess dataAccess)
+        {
+            ArgumentNullException.ThrowIfNull(dataAccess);
+
+            var name = (dataAccess.GetName() ?? string.Empty).Trim();
+
+            var physics = _includePhysics ? dataAccess.GetPhysics() : null;
+
+            IReadOnlyList<GH_Mesh> meshes = Array.Empty<GH_Mesh>();
+            IReadOnlyList<GH_Brep> breps = Array.Empty<GH_Brep>();
+
+            if (_inputMode == GeometryInputMode.Mesh)
+            {
+                meshes = (dataAccess.GetMeshes() ?? Array.Empty<GH_Mesh>())
+                    .Where(mesh => mesh != null)
+                    .ToList();
+            }
+            else
+            {
+                breps = (dataAccess.GetBreps() ?? Array.Empty<GH_Brep>())
+                    .Where(brep => brep != null)
+                    .ToList();
+            }
+
+            return new PartOptions(name, _inputMode, _includePhysics, physics, meshes, breps);
+        }
+
+        internal bool Validate(PartOptions options)
+        {
+            if (options == null)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Invalid part options.");
+                return false;
+            }
+
+            if (options.InputMode == GeometryInputMode.Mesh && options.Meshes.Count == 0)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No mesh geometry provided.");
+                return false;
+            }
+
+            if (options.InputMode == GeometryInputMode.Brep && options.Breps.Count == 0)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No brep geometry provided.");
+                return false;
+            }
+
+            if (options.IncludePhysics && options.Physics == null)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning,
+                    "Physics mode enabled but no physical property provided. Output will omit physics properties.");
+            }
+
+            return true;
+        }
+
+        internal PartBuildResult Build(PartOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(options);
+
+            return options.InputMode == GeometryInputMode.Mesh
+                ? BuildFromMeshes(options)
+                : BuildFromBreps(options);
+        }
+
+        internal void Output(IPartDataAccess dataAccess, PartBuildResult result)
+        {
+            ArgumentNullException.ThrowIfNull(dataAccess);
+            ArgumentNullException.ThrowIfNull(result);
+
+            var goos = result.Entries
+                .Select(entry => new AcGhPartWrapGoo(entry.Payload))
+                .ToList();
+            dataAccess.SetOutput(goos);
+
+            var report = $"Created {result.SuccessCount} Part objects";
+            if (result.FailureCount > 0)
+            {
+                report += $", {result.FailureCount} failed";
+            }
+
+            if (result.HasPhysics)
+            {
+                report += " (with physics)";
+            }
+
+            AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, report);
+        }
+
+        private PartBuildResult BuildFromMeshes(PartOptions options)
+        {
+            var entries = new List<PartBuildEntry>();
+            int successCount = 0, failureCount = 0;
+
+            for (int i = 0; i < options.Meshes.Count; i++)
+            {
+                try
+                {
+                    if (!TryPrepareMesh(options.Meshes[i], i, out var mesh, out var warningMessage))
+                    {
+                        failureCount++;
+                        if (!string.IsNullOrEmpty(warningMessage))
+                        {
+                            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, warningMessage);
+                        }
+
+                        continue;
+                    }
+
+                    var partName = CreatePartName(options.Name, i);
+                    var geometry = new PartGeometry(i, mesh!, partName, options.Meshes[i]?.Value, "Mesh");
+                    var entry = CreatePartEntry(options, geometry);
+                    ReportCreation(options, partName, mesh!, entry);
+
+                    entries.Add(entry);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    failureCount++;
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Error at index {i}: {ex.Message}");
+                }
+            }
+
+            return new PartBuildResult(entries, successCount, failureCount);
+        }
+
+        private PartBuildResult BuildFromBreps(PartOptions options)
+        {
+            var entries = new List<PartBuildEntry>();
+            int successCount = 0, failureCount = 0;
+
+            for (int i = 0; i < options.Breps.Count; i++)
+            {
+                try
+                {
+                    if (!TryPrepareMesh(options.Breps[i], i, out var mesh, out var warningMessage))
+                    {
+                        failureCount++;
+                        if (!string.IsNullOrEmpty(warningMessage))
+                        {
+                            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, warningMessage);
+                        }
+
+                        continue;
+                    }
+
+                    var partName = CreatePartName(options.Name, i);
+                    var geometry = new PartGeometry(i, mesh!, partName, options.Breps[i]?.Value, "Brep");
+                    var entry = CreatePartEntry(options, geometry);
+                    ReportCreation(options, partName, mesh!, entry);
+
+                    entries.Add(entry);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    failureCount++;
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Error at index {i}: {ex.Message}");
+                }
+            }
+
+            return new PartBuildResult(entries, successCount, failureCount);
+        }
+
+        private bool TryPrepareMesh(GH_Mesh meshGoo, int index, out Mesh? mesh, out string? warningMessage)
+        {
+            mesh = null;
+            warningMessage = null;
+
+            if (meshGoo?.Value == null)
+            {
+                warningMessage = $"Invalid mesh at index {index}, skipping.";
+                return false;
+            }
+
+            var duplicate = meshGoo.Value.DuplicateMesh();
+            if (duplicate == null || !duplicate.IsValid)
+            {
+                warningMessage = $"Invalid mesh at index {index}, skipping.";
+                return false;
+            }
+
+            duplicate.Normals.ComputeNormals();
+            mesh = duplicate;
+            return true;
+        }
+
+        private bool TryPrepareMesh(GH_Brep brepGoo, int index, out Mesh? mesh, out string? warningMessage)
+        {
+            mesh = null;
+            warningMessage = null;
+
+            var brep = brepGoo?.Value;
+            if (brep == null || !brep.IsValid)
+            {
+                warningMessage = $"Invalid brep at index {index}, skipping.";
+                return false;
+            }
+
+            var brepMeshes = Mesh.CreateFromBrep(brep, MeshingParameters.Default);
+            if (brepMeshes == null || brepMeshes.Length == 0)
+            {
+                warningMessage = $"Meshing failed at index {index}, skipping.";
+                return false;
+            }
+
+            var combinedMesh = new Mesh();
+            foreach (var part in brepMeshes)
+            {
+                if (part != null)
+                {
+                    combinedMesh.Append(part);
+                }
+            }
+
+            if (!combinedMesh.IsValid)
+            {
+                warningMessage = $"Generated mesh invalid at index {index}, skipping.";
+                return false;
+            }
+
+            combinedMesh.Normals.ComputeNormals();
+            mesh = combinedMesh;
+            return true;
+        }
+
+        private static string CreatePartName(string baseName, int index)
+        {
+            return !string.IsNullOrEmpty(baseName) ? $"{baseName}_{index}" : $"Part_{index}";
+        }
+
+        private PartBuildEntry CreatePartEntry(PartOptions options, PartGeometry geometry)
+        {
+            if (options.HasPhysics && options.Physics != null)
+            {
+                var part = new Part(geometry.IndexId, geometry.Name, geometry, options.Physics);
+                return new PartBuildEntry(geometry, part);
+            }
+
+            return new PartBuildEntry(geometry, null);
+        }
+
+        private void ReportCreation(PartOptions options, string partName, Mesh mesh, PartBuildEntry entry)
+        {
+            if (options.HasPhysics && options.Physics != null && entry.Part != null)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
+                    $"Created Part '{partName}' with physics: mass={options.Physics.Mass:F3}kg, friction={options.Physics.Friction:F2}");
+            }
+            else
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark,
+                    $"Created Part '{partName}' with {mesh.Vertices.Count} vertices, {mesh.Faces.Count} faces");
             }
         }
 
@@ -450,9 +570,93 @@ namespace AssemblyChain.Gh.Kernel
 
             return base.Read(reader);
         }
+
+        internal interface IPartDataAccess
+        {
+            string GetName();
+            IReadOnlyList<GH_Mesh> GetMeshes();
+            IReadOnlyList<GH_Brep> GetBreps();
+            PhysicsProperties? GetPhysics();
+            void SetOutput(IEnumerable<AcGhPartWrapGoo> values);
+        }
+
+        internal sealed record PartOptions(
+            string Name,
+            GeometryInputMode InputMode,
+            bool IncludePhysics,
+            PhysicsProperties? Physics,
+            IReadOnlyList<GH_Mesh> Meshes,
+            IReadOnlyList<GH_Brep> Breps)
+        {
+            public bool HasPhysics => IncludePhysics && Physics != null;
+        }
+
+        internal sealed record PartBuildEntry(PartGeometry Geometry, Part? Part)
+        {
+            public bool HasPhysics => Part != null;
+            public object Payload => (object?)Part ?? Geometry;
+        }
+
+        internal sealed record PartBuildResult(
+            IReadOnlyList<PartBuildEntry> Entries,
+            int SuccessCount,
+            int FailureCount)
+        {
+            public bool HasPhysics => Entries.Any(entry => entry.HasPhysics);
+        }
+
+        private sealed class GhDataAccessAdapter : IPartDataAccess
+        {
+            private readonly IGH_DataAccess _dataAccess;
+            private readonly bool _includePhysics;
+
+            public GhDataAccessAdapter(IGH_DataAccess dataAccess, bool includePhysics)
+            {
+                _dataAccess = dataAccess ?? throw new ArgumentNullException(nameof(dataAccess));
+                _includePhysics = includePhysics;
+            }
+
+            public string GetName()
+            {
+                string name = string.Empty;
+                _dataAccess.GetData(0, ref name);
+                return name ?? string.Empty;
+            }
+
+            public IReadOnlyList<GH_Mesh> GetMeshes()
+            {
+                var meshes = new List<GH_Mesh>();
+                _dataAccess.GetDataList(1, meshes);
+                return meshes;
+            }
+
+            public IReadOnlyList<GH_Brep> GetBreps()
+            {
+                var breps = new List<GH_Brep>();
+                _dataAccess.GetDataList(1, breps);
+                return breps;
+            }
+
+            public PhysicsProperties? GetPhysics()
+            {
+                if (!_includePhysics)
+                {
+                    return null;
+                }
+
+                var physicsGoo = new AcGhPhysicalPropertyGoo();
+                if (_dataAccess.GetData(2, ref physicsGoo) && physicsGoo?.Value != null)
+                {
+                    return physicsGoo.Value;
+                }
+
+                return null;
+            }
+
+            public void SetOutput(IEnumerable<AcGhPartWrapGoo> values)
+            {
+                _dataAccess.SetDataList(0, values);
+            }
+        }
     }
 }
-
-
-
-

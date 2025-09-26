@@ -13,7 +13,7 @@ namespace AssemblyChain.Core.Facade
     /// <summary>
     /// Facade orchestrating contact detection, sequence planning, robotic export and learning hooks.
     /// </summary>
-    public sealed class AssemblyChainFacade
+    public sealed class AssemblyChainFacade : IAssemblyChainFacade
     {
         private readonly IContactUtils _contactUtils;
         private readonly Func<SolverType, ISolver> _solverFactory;
