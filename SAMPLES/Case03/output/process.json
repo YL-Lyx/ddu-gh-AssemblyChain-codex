@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "header": {
+    "generator": "AssemblyChain",
+    "author": "Case03 Sample",
+    "description": "Three-block disassembly via AssemblyChain facade",
+    "createdUtc": "2025-01-01T00:00:00Z"
+  },
+  "steps": [
+    {
+      "index": 0,
+      "partId": "Block_0",
+      "direction": [0.0, 0.0, 1.0],
+      "batch": 0,
+      "insert": false
+    },
+    {
+      "index": 1,
+      "partId": "Block_1",
+      "direction": [0.0, 0.0, 1.0],
+      "batch": 0,
+      "insert": false
+    },
+    {
+      "index": 2,
+      "partId": "Block_2",
+      "direction": [0.0, 0.0, 1.0],
+      "batch": 0,
+      "insert": false
+    }
+  ],
+  "metadata": {
+    "solver": "CSP",
+    "feasible": true,
+    "optimal": true,
+    "stepCount": 3
+  }
+}

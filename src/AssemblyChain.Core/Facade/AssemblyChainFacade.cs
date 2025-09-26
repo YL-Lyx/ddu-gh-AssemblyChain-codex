@@ -6,6 +6,7 @@ using AssemblyChain.Core.Learning;
 using AssemblyChain.Core.Model;
 using AssemblyChain.Core.Robotics;
 using AssemblyChain.Core.Solver;
+using AssemblyChain.Core.Solver.Backends;
 
 namespace AssemblyChain.Core.Facade
 {
@@ -16,6 +17,7 @@ namespace AssemblyChain.Core.Facade
     {
         private readonly IContactUtils _contactUtils;
         private readonly Func<SolverType, ISolver> _solverFactory;
+        private readonly Func<SolverType, ISolverBackend> _backendSelector;
         private readonly OnnxInferenceService _inferenceService;
 
         /// <summary>
@@ -24,13 +26,16 @@ namespace AssemblyChain.Core.Facade
         /// <param name="contactUtils">Contact utilities implementation.</param>
         /// <param name="solverFactory">Factory resolving solver instances for a given solver type.</param>
         /// <param name="inferenceService">ONNX inference stub service.</param>
+        /// <param name="backendSelector">Optional backend selector override.</param>
         public AssemblyChainFacade(
             IContactUtils? contactUtils = null,
             Func<SolverType, ISolver>? solverFactory = null,
-            OnnxInferenceService? inferenceService = null)
+            OnnxInferenceService? inferenceService = null,
+            Func<SolverType, ISolverBackend>? backendSelector = null)
         {
             _contactUtils = contactUtils ?? new ContactUtils();
-            _solverFactory = solverFactory ?? ResolveDefaultSolver;
+            _backendSelector = backendSelector ?? (mode => ResolveDefaultBackend(mode));
+            _solverFactory = solverFactory ?? (mode => ResolveDefaultSolver(mode, _backendSelector(mode)));
             _inferenceService = inferenceService ?? new OnnxInferenceService();
         }
 
@@ -57,6 +62,35 @@ namespace AssemblyChain.Core.Facade
             var solver = _solverFactory(NormalizeSolverType(request.Solver.SolverType));
             var solverResult = solver.Solve(request.Assembly, contacts, constraints, request.Solver);
             return new AssemblyPlanResult(contacts, solverResult);
+        }
+
+        /// <summary>
+        /// Builds constraint data and solves the planning problem with the configured backend.
+        /// </summary>
+        /// <param name="assembly">Assembly snapshot.</param>
+        /// <param name="options">Solver options (mode, limits).</param>
+        /// <param name="contacts">Optional pre-computed contacts.</param>
+        /// <param name="constraints">Optional pre-computed constraints.</param>
+        /// <returns>The solver result as <see cref="DgSolverModel"/>.</returns>
+        public DgSolverModel BuildAndSolve(
+            AssemblyModel assembly,
+            SolverOptions options = default,
+            ContactModel? contacts = null,
+            ConstraintModel? constraints = null)
+        {
+            if (assembly == null)
+            {
+                throw new ArgumentNullException(nameof(assembly));
+            }
+
+            var detectionOptions = new DetectionOptions();
+            var resolvedContacts = contacts ?? DetectContacts(assembly, detectionOptions);
+            var resolvedConstraints = constraints ?? ConstraintModelFactory.CreateEmpty(assembly);
+            var solverType = NormalizeSolverType(options.SolverType);
+            var solver = _solverFactory(solverType);
+            var normalizedOptions = options with { SolverType = solverType };
+
+            return solver.Solve(assembly, resolvedContacts, resolvedConstraints, normalizedOptions);
         }
 
         /// <summary>
@@ -114,20 +148,25 @@ namespace AssemblyChain.Core.Facade
             return _inferenceService.Run(request);
         }
 
-        private static ISolver ResolveDefaultSolver(SolverType solverType)
+        private static ISolver ResolveDefaultSolver(SolverType solverType, ISolverBackend backend)
         {
             return solverType switch
             {
-                SolverType.CSP => new CspSolver(),
-                SolverType.SAT => new SatSolver(),
-                SolverType.MILP => new MilpSolver(),
-                _ => new CspSolver()
+                SolverType.CSP => new CspSolver(backend),
+                SolverType.SAT => new SatSolver(backend),
+                SolverType.MILP => new MilpSolver(backend),
+                _ => new CspSolver(backend)
             };
         }
 
         private static SolverType NormalizeSolverType(SolverType solverType)
         {
             return solverType == SolverType.Auto ? SolverType.CSP : solverType;
+        }
+
+        private static ISolverBackend ResolveDefaultBackend(SolverType _)
+        {
+            return new OrToolsBackend();
         }
     }
 }

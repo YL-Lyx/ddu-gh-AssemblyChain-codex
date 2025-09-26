@@ -65,6 +65,7 @@ class MethodMetrics:
     max_nesting: int
     is_async: bool
     await_count: int
+    is_public: bool
 
 
 @dataclass
@@ -158,6 +159,7 @@ def file_to_json(metrics: FileMetrics) -> Dict[str, object]:
                 "max_nesting": method.max_nesting,
                 "is_async": method.is_async,
                 "await_count": method.await_count,
+                "is_public": method.is_public,
             }
             for method in metrics.methods
         ],
@@ -274,6 +276,7 @@ def extract_methods(text: str) -> List[MethodMetrics]:
                 max_nesting=max_nesting,
                 is_async="async" in match.group("signature"),
                 await_count=await_count,
+                is_public="public" in match.group("signature"),
             )
         )
     return methods
