@@ -2,7 +2,6 @@
 using System;
 using System.Linq;
 using AssemblyChain.Geometry.Contact;
-using AssemblyChain.Geometry.Contact.Detection;
 using AssemblyChain.Planning.Facade;
 using AssemblyChain.Planning.Model;
 using Grasshopper.Kernel;

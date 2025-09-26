@@ -6,7 +6,6 @@ using Rhino.Geometry;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Planning.Model;
 using AssemblyChain.IO.Contracts;
-using AssemblyChain.Geometry.Toolkit;
 using AssemblyChain.Geometry.Toolkit.Mesh;
 using AssemblyChain.Geometry.Toolkit.Utils;
 using AssemblyChain.Geometry.Toolkit.Geometry;
