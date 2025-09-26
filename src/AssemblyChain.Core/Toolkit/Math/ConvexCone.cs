@@ -18,6 +18,11 @@ namespace AssemblyChain.Core.Toolkit.Math
             public Vector3d Normal;
             public double Offset;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Halfspace"/> struct using an explicit offset.
+            /// </summary>
+            /// <param name="normal">The outward facing halfspace normal.</param>
+            /// <param name="offset">The signed offset from the origin.</param>
             public Halfspace(Vector3d normal, double offset)
             {
                 Normal = normal;
@@ -25,6 +30,11 @@ namespace AssemblyChain.Core.Toolkit.Math
                 Offset = offset;
             }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Halfspace"/> struct constrained to pass through a point.
+            /// </summary>
+            /// <param name="normal">The outward facing halfspace normal.</param>
+            /// <param name="point">A point that lies on the halfspace boundary.</param>
             public Halfspace(Vector3d normal, Point3d point)
             {
                 Normal = normal;
@@ -32,11 +42,22 @@ namespace AssemblyChain.Core.Toolkit.Math
                 Offset = Vector3d.Multiply(Normal, new Vector3d(point.X, point.Y, point.Z));
             }
 
+            /// <summary>
+            /// Computes the signed distance from the halfspace boundary to the specified point.
+            /// </summary>
+            /// <param name="point">The sample point.</param>
+            /// <returns>A negative value for inside points, zero on the boundary and positive outside.</returns>
             public double SignedDistance(Point3d point)
             {
                 return Vector3d.Multiply(Normal, new Vector3d(point.X, point.Y, point.Z)) - Offset;
             }
 
+            /// <summary>
+            /// Determines whether the point lies within or on the boundary of the halfspace.
+            /// </summary>
+            /// <param name="point">The sample point.</param>
+            /// <param name="tolerance">Optional tolerance to relax the containment test.</param>
+            /// <returns><see langword="true"/> if the point lies inside the halfspace; otherwise, <see langword="false"/>.</returns>
             public bool Contains(Point3d point, double tolerance = 0)
             {
                 return SignedDistance(point) <= tolerance;
@@ -50,18 +71,57 @@ namespace AssemblyChain.Core.Toolkit.Math
         {
             public List<Halfspace> Halfspaces { get; } = new List<Halfspace>();
 
+            /// <summary>
+            /// Appends a pre-constructed halfspace to the cone definition.
+            /// </summary>
+            /// <param name="halfspace">The halfspace to append.</param>
             public void AddHalfspace(Halfspace halfspace) => Halfspaces.Add(halfspace);
+
+            /// <summary>
+            /// Appends a halfspace constructed from a normal and offset to the cone definition.
+            /// </summary>
+            /// <param name="normal">The outward facing halfspace normal.</param>
+            /// <param name="offset">The signed offset from the origin.</param>
             public void AddHalfspace(Vector3d normal, double offset) => Halfspaces.Add(new Halfspace(normal, offset));
+
+            /// <summary>
+            /// Tests whether a point is contained within the cone.
+            /// </summary>
+            /// <param name="point">The sample point.</param>
+            /// <param name="tolerance">Optional tolerance to relax the containment test.</param>
+            /// <returns><see langword="true"/> when the point satisfies all halfspace constraints.</returns>
             public bool Contains(Point3d point, double tolerance = 0) => Halfspaces.All(h => h.Contains(point, tolerance));
+
+            /// <summary>
+            /// Determines whether the cone currently contains any halfspaces.
+            /// </summary>
+            /// <returns><see langword="true"/> if no halfspaces are defined.</returns>
             public bool IsEmpty() => Halfspaces.Count == 0;
+
+            /// <summary>
+            /// Returns the set of halfspace normals that define the cone boundary.
+            /// </summary>
+            /// <returns>A copy of the halfspace normals.</returns>
             public IReadOnlyList<Vector3d> GetExtremeRays() => Halfspaces.Select(h => h.Normal).ToList();
         }
 
+        /// <summary>
+        /// Creates a halfspace definition derived from a contact normal and point.
+        /// </summary>
+        /// <param name="contactNormal">The contact normal.</param>
+        /// <param name="contactPoint">The contact point.</param>
+        /// <param name="isSeparating">If <see langword="true"/>, keeps the original normal; otherwise, flips it.</param>
+        /// <returns>A normalized halfspace representing the contact constraint.</returns>
         public static Halfspace CreateHalfspaceFromContact(Vector3d contactNormal, Point3d contactPoint, bool isSeparating = true)
         {
             return isSeparating ? new Halfspace(contactNormal, contactPoint) : new Halfspace(-contactNormal, contactPoint);
         }
 
+        /// <summary>
+        /// Builds a convex cone from a collection of contact constraint normals.
+        /// </summary>
+        /// <param name="constraintNormals">The constraint normals that bound the cone.</param>
+        /// <returns>A cone that aggregates each supplied halfspace constraint.</returns>
         public static Cone CreateConeFromContacts(IReadOnlyList<Vector3d> constraintNormals)
         {
             var cone = new Cone();
@@ -73,6 +133,12 @@ namespace AssemblyChain.Core.Toolkit.Math
             return cone;
         }
 
+        /// <summary>
+        /// Computes the intersection of two cones by aggregating their halfspaces.
+        /// </summary>
+        /// <param name="cone1">The first cone.</param>
+        /// <param name="cone2">The second cone.</param>
+        /// <returns>A cone representing the combined constraint set.</returns>
         public static Cone IntersectCones(Cone cone1, Cone cone2)
         {
             var result = new Cone();
@@ -81,21 +147,43 @@ namespace AssemblyChain.Core.Toolkit.Math
             return result;
         }
 
+        /// <summary>
+        /// Extracts the unique extreme rays that form the boundary of the cone.
+        /// </summary>
+        /// <param name="cone">The cone to evaluate.</param>
+        /// <returns>A distinct list of normalized boundary rays.</returns>
         public static IReadOnlyList<Vector3d> ComputeExtremeRays(Cone cone)
         {
             return (cone?.Halfspaces ?? new List<Halfspace>()).Select(h => h.Normal).Distinct().ToList();
         }
 
+        /// <summary>
+        /// Tests whether a direction vector lies inside the cone.
+        /// </summary>
+        /// <param name="direction">The direction vector to evaluate.</param>
+        /// <param name="cone">The cone describing the feasible region.</param>
+        /// <param name="tolerance">Optional tolerance to relax the containment test.</param>
+        /// <returns><see langword="true"/> if the direction is feasible.</returns>
         public static bool IsDirectionFeasible(Vector3d direction, Cone cone, double tolerance = 1e-9)
         {
             return cone != null && cone.Contains(Point3d.Origin + direction, tolerance);
         }
 
+        /// <summary>
+        /// Retrieves the cone boundary rays without performing additional computations.
+        /// </summary>
+        /// <param name="cone">The cone to evaluate.</param>
+        /// <returns>The set of extreme rays.</returns>
         public static IReadOnlyList<Vector3d> FindConeBoundary(Cone cone)
         {
             return ComputeExtremeRays(cone);
         }
 
+        /// <summary>
+        /// Computes the dual cone formed by negating every halfspace normal.
+        /// </summary>
+        /// <param name="cone">The source cone.</param>
+        /// <returns>The dual cone.</returns>
         public static Cone ComputeDualCone(Cone cone)
         {
             var dual = new Cone();
@@ -107,12 +195,22 @@ namespace AssemblyChain.Core.Toolkit.Math
             return dual;
         }
 
+        /// <summary>
+        /// Determines whether the cone is pointed, i.e. the extreme rays do not lie on the same line.
+        /// </summary>
+        /// <param name="cone">The cone to evaluate.</param>
+        /// <returns><see langword="true"/> if at least three unique rays are present.</returns>
         public static bool IsPointed(Cone cone)
         {
             var extremeRays = ComputeExtremeRays(cone);
             return extremeRays.Count >= 3;
         }
 
+        /// <summary>
+        /// Estimates the topological dimension of the cone based on its extreme rays.
+        /// </summary>
+        /// <param name="cone">The cone to evaluate.</param>
+        /// <returns>The estimated dimension ranging from 0 to 3.</returns>
         public static int GetDimension(Cone cone)
         {
             var extremeRays = ComputeExtremeRays(cone);
@@ -122,6 +220,11 @@ namespace AssemblyChain.Core.Toolkit.Math
             return AreCoplanar(extremeRays) ? 2 : 3;
         }
 
+        /// <summary>
+        /// Tests whether a set of vectors are coplanar using their cross product.
+        /// </summary>
+        /// <param name="vectors">The vectors to evaluate.</param>
+        /// <returns><see langword="true"/> if the vectors are coplanar.</returns>
         private static bool AreCoplanar(IReadOnlyList<Vector3d> vectors)
         {
             if (vectors.Count < 3) return true;
@@ -136,6 +239,13 @@ namespace AssemblyChain.Core.Toolkit.Math
             return true;
         }
 
+        /// <summary>
+        /// Generates a set of feasible motion rays by interpolating between extreme rays.
+        /// </summary>
+        /// <param name="cone">The cone describing the feasible region.</param>
+        /// <param name="numRays">Requested number of fallback rays when no extreme rays are available.</param>
+        /// <param name="minAngle">Minimum angular resolution between interpolated rays in degrees.</param>
+        /// <returns>A list of normalized direction vectors.</returns>
         public static IReadOnlyList<Vector3d> GenerateMotionRays(Cone cone, int numRays = 32, double minAngle = 5.0)
         {
             var extremeRays = ComputeExtremeRays(cone);
@@ -159,6 +269,13 @@ namespace AssemblyChain.Core.Toolkit.Math
             return motionRays.Distinct().ToList();
         }
 
+        /// <summary>
+        /// Interpolates between two vectors on the unit sphere using spherical linear interpolation.
+        /// </summary>
+        /// <param name="a">The starting vector.</param>
+        /// <param name="b">The ending vector.</param>
+        /// <param name="t">Interpolation parameter between 0 and 1.</param>
+        /// <returns>The interpolated unit vector.</returns>
         private static Vector3d Slerp(Vector3d a, Vector3d b, double t)
         {
             var dot = Vector3d.Multiply(a, b);
@@ -171,6 +288,11 @@ namespace AssemblyChain.Core.Toolkit.Math
             return a * w1 + b * w2;
         }
 
+        /// <summary>
+        /// Generates a uniform distribution of unit vectors using a spherical Fibonacci lattice.
+        /// </summary>
+        /// <param name="count">The number of vectors to generate.</param>
+        /// <returns>A list of uniformly distributed unit vectors.</returns>
         private static IReadOnlyList<Vector3d> GenerateUniformRays(int count)
         {
             var rays = new List<Vector3d>();
