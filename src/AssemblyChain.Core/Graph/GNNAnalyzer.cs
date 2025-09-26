@@ -184,63 +184,90 @@ namespace AssemblyChain.Core.Graph
             List<int> activeParts,
             HashSet<int> affectedNodes)
         {
-            var newFeatures = new Dictionary<int, NodeFeatures>();
+            var newFeatures = CopyUnaffectedFeatures(currentFeatures, activeParts, affectedNodes);
 
-            // Copy unaffected features
+            foreach (var partId in FilterAffectedNodes(activeParts, affectedNodes))
+            {
+                var currentFeature = currentFeatures[partId];
+                var neighborMessages = CollectNeighborMessages(partId, currentFeatures, dbgs, activeParts);
+                var updatedFeature = ApplyNeighborMessages(currentFeature, neighborMessages);
+                newFeatures[partId] = updatedFeature;
+            }
+
+            return newFeatures;
+        }
+
+        private static Dictionary<int, NodeFeatures> CopyUnaffectedFeatures(
+            IReadOnlyDictionary<int, NodeFeatures> currentFeatures,
+            IEnumerable<int> activeParts,
+            ISet<int> affectedNodes)
+        {
+            var clone = new Dictionary<int, NodeFeatures>();
             foreach (var partId in activeParts)
             {
                 if (!affectedNodes.Contains(partId))
                 {
-                    newFeatures[partId] = currentFeatures[partId].Clone();
+                    clone[partId] = currentFeatures[partId].Clone();
                 }
             }
 
-            // Update affected nodes
-            foreach (var partId in affectedNodes.Where(id => activeParts.Contains(id)))
+            return clone;
+        }
+
+        private static IEnumerable<int> FilterAffectedNodes(IEnumerable<int> activeParts, ISet<int> affectedNodes)
+        {
+            foreach (var partId in activeParts)
             {
-                var currentFeature = currentFeatures[partId];
-                var newFeature = currentFeature.Clone();
-
-                // Aggregate messages from neighbors in each DBG
-                var neighborMessages = new List<double>();
-
-                foreach (var dbg in dbgs)
+                if (affectedNodes.Contains(partId))
                 {
-                    // Messages from parts this part blocks
-                    foreach (var blockedId in dbg.GetBlockedParts(partId))
-                    {
-                        if (activeParts.Contains(blockedId))
-                        {
-                            var neighborFeature = currentFeatures[blockedId];
-                            var message = CalculateMessage(currentFeature, neighborFeature, "blocking");
-                            neighborMessages.Add(message);
-                        }
-                    }
+                    yield return partId;
+                }
+            }
+        }
 
-                    // Messages from parts that block this part
-                    foreach (var blockerId in dbg.GetBlockers(partId))
+        private List<double> CollectNeighborMessages(
+            int partId,
+            IReadOnlyDictionary<int, NodeFeatures> currentFeatures,
+            IEnumerable<DirectionalBlockingGraph> dbgs,
+            IReadOnlyCollection<int> activeParts)
+        {
+            var neighborMessages = new List<double>();
+
+            foreach (var dbg in dbgs)
+            {
+                foreach (var blockedId in dbg.GetBlockedParts(partId))
+                {
+                    if (activeParts.Contains(blockedId))
                     {
-                        if (activeParts.Contains(blockerId))
-                        {
-                            var neighborFeature = currentFeatures[blockerId];
-                            var message = CalculateMessage(currentFeature, neighborFeature, "blocked");
-                            neighborMessages.Add(message);
-                        }
+                        neighborMessages.Add(CalculateMessage(currentFeatures[partId], currentFeatures[blockedId], "blocking"));
                     }
                 }
 
-                // Update features based on aggregated messages
-                if (neighborMessages.Count > 0)
+                foreach (var blockerId in dbg.GetBlockers(partId))
                 {
-                    var avgMessage = neighborMessages.Average();
-                    newFeature.MessageAggregate = _dampingFactor * currentFeature.MessageAggregate +
-                                                (1 - _dampingFactor) * avgMessage;
+                    if (activeParts.Contains(blockerId))
+                    {
+                        neighborMessages.Add(CalculateMessage(currentFeatures[partId], currentFeatures[blockerId], "blocked"));
+                    }
                 }
-
-                newFeatures[partId] = newFeature;
             }
 
-            return newFeatures;
+            return neighborMessages;
+        }
+
+        private NodeFeatures ApplyNeighborMessages(NodeFeatures currentFeature, List<double> neighborMessages)
+        {
+            var updated = currentFeature.Clone();
+
+            if (neighborMessages.Count == 0)
+            {
+                return updated;
+            }
+
+            var avgMessage = neighborMessages.Average();
+            updated.MessageAggregate = _dampingFactor * currentFeature.MessageAggregate +
+                                       (1 - _dampingFactor) * avgMessage;
+            return updated;
         }
 
         /// <summary>
@@ -321,71 +348,87 @@ namespace AssemblyChain.Core.Graph
             IEnumerable<DirectionalBlockingGraph> dbgs,
             List<int> activeParts)
         {
+            return _useSparseMode
+                ? ComputeSparseAffinities(features, dbgs, activeParts)
+                : ComputeDenseAffinities(features, dbgs, activeParts);
+        }
+
+        private Dictionary<(int, int), double> ComputeSparseAffinities(
+            IReadOnlyDictionary<int, NodeFeatures> features,
+            IEnumerable<DirectionalBlockingGraph> dbgs,
+            IReadOnlyList<int> activeParts)
+        {
+            var nodeAffinities = new Dictionary<int, List<(int other, double affinity)>>();
+
+            foreach (var (pair, affinity) in EnumeratePairAffinities(features, dbgs, activeParts))
+            {
+                AddAffinity(nodeAffinities, pair.Item1, pair.Item2, affinity);
+                AddAffinity(nodeAffinities, pair.Item2, pair.Item1, affinity);
+            }
+
+            return SelectTopNeighbors(nodeAffinities);
+        }
+
+        private Dictionary<(int, int), double> ComputeDenseAffinities(
+            IReadOnlyDictionary<int, NodeFeatures> features,
+            IEnumerable<DirectionalBlockingGraph> dbgs,
+            IReadOnlyList<int> activeParts)
+        {
             var affinities = new Dictionary<(int, int), double>();
 
-            if (_useSparseMode)
+            foreach (var (pair, affinity) in EnumeratePairAffinities(features, dbgs, activeParts))
             {
-                // Sparse mode: only compute affinities for promising pairs
-                var allPairs = new List<((int, int) parts, double affinity)>();
+                affinities[pair] = affinity;
+                affinities[(pair.Item2, pair.Item1)] = affinity;
+            }
 
-                // First pass: compute all pairwise affinities
-                for (int i = 0; i < activeParts.Count; i++)
+            return affinities;
+        }
+
+        private IEnumerable<((int, int) pair, double affinity)> EnumeratePairAffinities(
+            IReadOnlyDictionary<int, NodeFeatures> features,
+            IEnumerable<DirectionalBlockingGraph> dbgs,
+            IReadOnlyList<int> activeParts)
+        {
+            for (int i = 0; i < activeParts.Count; i++)
+            {
+                for (int j = i + 1; j < activeParts.Count; j++)
                 {
-                    for (int j = i + 1; j < activeParts.Count; j++)
-                    {
-                        var partA = activeParts[i];
-                        var partB = activeParts[j];
-                        var affinity = CalculatePairAffinity(partA, partB, features, dbgs);
-                        allPairs.Add(((partA, partB), affinity));
-                    }
-                }
-
-                // Second pass: keep only top-K affinities per node
-                var nodeAffinities = new Dictionary<int, List<(int other, double affinity)>>();
-
-                foreach (var (parts, affinity) in allPairs)
-                {
-                    var (partA, partB) = parts;
-
-                    // Add to partA's neighbors
-                    if (!nodeAffinities.ContainsKey(partA))
-                        nodeAffinities[partA] = new List<(int, double)>();
-                    nodeAffinities[partA].Add((partB, affinity));
-
-                    // Add to partB's neighbors
-                    if (!nodeAffinities.ContainsKey(partB))
-                        nodeAffinities[partB] = new List<(int, double)>();
-                    nodeAffinities[partB].Add((partA, affinity));
-                }
-
-                // Keep only top-K neighbors per node
-                foreach (var kvp in nodeAffinities)
-                {
-                    var topNeighbors = kvp.Value
-                        .OrderByDescending(x => x.affinity)
-                        .Take(_maxNeighborsPerNode);
-
-                    foreach (var (other, affinity) in topNeighbors)
-                    {
-                        var key = kvp.Key < other ? (kvp.Key, other) : (other, kvp.Key);
-                        affinities[key] = affinity;
-                    }
+                    var partA = activeParts[i];
+                    var partB = activeParts[j];
+                    var affinity = CalculatePairAffinity(partA, partB, features, dbgs);
+                    yield return ((partA, partB), affinity);
                 }
             }
-            else
-            {
-                // Dense mode: compute all pairwise affinities (original implementation)
-                for (int i = 0; i < activeParts.Count; i++)
-                {
-                    for (int j = i + 1; j < activeParts.Count; j++)
-                    {
-                        var partA = activeParts[i];
-                        var partB = activeParts[j];
+        }
 
-                        var affinity = CalculatePairAffinity(partA, partB, features, dbgs);
-                        affinities[(partA, partB)] = affinity;
-                        affinities[(partB, partA)] = affinity; // Symmetric
-                    }
+        private static void AddAffinity(Dictionary<int, List<(int other, double affinity)>> nodeAffinities,
+            int source,
+            int target,
+            double affinity)
+        {
+            if (!nodeAffinities.TryGetValue(source, out var list))
+            {
+                list = new List<(int, double)>();
+                nodeAffinities[source] = list;
+            }
+
+            list.Add((target, affinity));
+        }
+
+        private Dictionary<(int, int), double> SelectTopNeighbors(
+            Dictionary<int, List<(int other, double affinity)>> nodeAffinities)
+        {
+            var affinities = new Dictionary<(int, int), double>();
+
+            foreach (var kvp in nodeAffinities)
+            {
+                foreach (var (other, affinity) in kvp.Value
+                    .OrderByDescending(x => x.affinity)
+                    .Take(_maxNeighborsPerNode))
+                {
+                    var key = kvp.Key < other ? (kvp.Key, other) : (other, kvp.Key);
+                    affinities[key] = affinity;
                 }
             }
 

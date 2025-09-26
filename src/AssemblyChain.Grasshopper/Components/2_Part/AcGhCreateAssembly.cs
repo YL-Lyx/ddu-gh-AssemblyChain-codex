@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using AssemblyChain.Core;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
+using AssemblyChain.Core.Toolkit.Processing;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 
@@ -31,15 +32,8 @@ namespace AssemblyChain.Gh.Kernel
         {
             try
             {
-                // Get assembly name
-                string baseName = string.Empty;
-                dataAccess.GetData(0, ref baseName);
-                if (string.IsNullOrWhiteSpace(baseName))
-                {
-                    baseName = "Assembly";
-                }
+                string baseName = GetAssemblyName(dataAccess);
 
-                // Get part inputs
                 var partGoos = new List<IGH_Goo>();
                 if (!dataAccess.GetDataList(1, partGoos) || partGoos.Count == 0)
                 {
@@ -47,77 +41,90 @@ namespace AssemblyChain.Gh.Kernel
                     return;
                 }
 
-                // Collect all valid parts
-                var validParts = new List<Part>();
-                int successCount = 0, failureCount = 0;
+                var extraction = ExtractParts(partGoos);
+                EmitMessages(extraction.messages);
 
-                foreach (var goo in partGoos)
-                {
-                    try
-                    {
-                        if (goo is AcGhPartWrapGoo partGoo && partGoo.Value != null)
-                        {
-                            // Unified Goo contains either PartGeometry or complete Part
-                            var part = partGoo.CompletePart;
-                            if (part != null)
-                            {
-                                validParts.Add(part);
-                                successCount++;
-                            }
-                            else
-                            {
-                                failureCount++;
-                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Invalid part data in unified Goo");
-                            }
-                        }
-                        else if (goo is GH_ObjectWrapper wrapper && wrapper.Value is Part part)
-                        {
-                            validParts.Add(part);
-                            successCount++;
-                        }
-                        else
-                        {
-                            failureCount++;
-                            AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, $"Unsupported input type: {goo?.GetType().Name ?? "null"}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failureCount++;
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Warning,
-                            $"Failed to process part: {ex.Message}");
-                    }
-                }
+                var result = AssemblyBuilder.Build(baseName, extraction.parts);
+                EmitMessages(result.Messages);
 
-                if (validParts.Count == 0)
+                if (!result.HasAssembly)
                 {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "No valid parts found.");
                     return;
                 }
 
-                // Create single assembly with all parts
-                var assembly = new Assembly(0, baseName);
-
-                // Add parts to assembly
-                foreach (var part in validParts)
-                {
-                    assembly.AddPart(part);
-                }
-
-                // Set output
-                var assemblyGoo = new AcGhAssemblyWrapGoo(assembly);
-                dataAccess.SetData(0, assemblyGoo);
-
-                // Report results
-                var report = $"Created assembly '{baseName}' with {successCount} parts";
-                if (failureCount > 0) report += $", {failureCount} failed";
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, report);
+                dataAccess.SetData(0, new AcGhAssemblyWrapGoo(result.Assembly));
             }
             catch (Exception ex)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error,
                     $"Assembly creation failed: {ex.Message}");
             }
+        }
+
+        private static string GetAssemblyName(IGH_DataAccess dataAccess)
+        {
+            string baseName = string.Empty;
+            dataAccess.GetData(0, ref baseName);
+            return string.IsNullOrWhiteSpace(baseName) ? "Assembly" : baseName.Trim();
+        }
+
+        private (List<Part?> parts, List<ProcessingMessage> messages) ExtractParts(IEnumerable<IGH_Goo> goos)
+        {
+            var parts = new List<Part?>();
+            var messages = new List<ProcessingMessage>();
+
+            foreach (var goo in goos)
+            {
+                try
+                {
+                    switch (goo)
+                    {
+                        case AcGhPartWrapGoo partGoo when partGoo.Value != null:
+                            parts.Add(partGoo.CompletePart);
+                            if (partGoo.CompletePart == null)
+                            {
+                                messages.Add(new ProcessingMessage(ProcessingMessageLevel.Warning,
+                                    "Invalid part data in unified Goo"));
+                            }
+                            break;
+                        case GH_ObjectWrapper wrapper when wrapper.Value is Part part:
+                            parts.Add(part);
+                            break;
+                        default:
+                            parts.Add(null);
+                            messages.Add(new ProcessingMessage(ProcessingMessageLevel.Warning,
+                                $"Unsupported input type: {goo?.GetType().Name ?? "null"}"));
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    parts.Add(null);
+                    messages.Add(new ProcessingMessage(ProcessingMessageLevel.Warning,
+                        $"Failed to process part: {ex.Message}"));
+                }
+            }
+
+            return (parts, messages);
+        }
+
+        private void EmitMessages(IEnumerable<ProcessingMessage> messages)
+        {
+            foreach (var message in messages)
+            {
+                AddRuntimeMessage(ToRuntimeLevel(message.Level), message.Text);
+            }
+        }
+
+        private static GH_RuntimeMessageLevel ToRuntimeLevel(ProcessingMessageLevel level)
+        {
+            return level switch
+            {
+                ProcessingMessageLevel.Remark => GH_RuntimeMessageLevel.Remark,
+                ProcessingMessageLevel.Warning => GH_RuntimeMessageLevel.Warning,
+                ProcessingMessageLevel.Error => GH_RuntimeMessageLevel.Error,
+                _ => GH_RuntimeMessageLevel.Remark
+            };
         }
 
 
