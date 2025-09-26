@@ -16,3 +16,5 @@ dotnet_naming_rule.interface_should_start_with_i.style = interface_prefix
 dotnet_naming_symbols.interface_symbols.applicable_kinds = interface
 dotnet_naming_style.interface_prefix.capitalization = pascal_case
 dotnet_naming_style.interface_prefix.required_prefix = I
+dotnet_diagnostic.CA1502.severity = error
+dotnet_code_quality.CA1502.max_complexity = 10
