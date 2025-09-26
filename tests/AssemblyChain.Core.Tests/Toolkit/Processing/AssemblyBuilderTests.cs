@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
-using AssemblyChain.Core.Toolkit.Processing;
+using AssemblyChain.Geometry.Toolkit.Processing;
 using Rhino.Geometry;
 using Xunit;
 

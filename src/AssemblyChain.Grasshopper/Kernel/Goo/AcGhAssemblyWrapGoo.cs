@@ -1,6 +1,6 @@
 using System;
 using AssemblyChain.Core.Domain.Entities;
-using AssemblyChain.Core.Model;
+using AssemblyChain.Planning.Model;
 using Grasshopper.Kernel.Types;
 
 namespace AssemblyChain.Gh.Kernel

@@ -4,8 +4,8 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
 using Rhino.Geometry;
-using AssemblyChain.Core.Contact;
-using AssemblyChain.Core.Toolkit.Processing;
+using AssemblyChain.Geometry.Contact;
+using AssemblyChain.Geometry.Toolkit.Processing;
 
 namespace AssemblyChain.Gh.Kernel
 {

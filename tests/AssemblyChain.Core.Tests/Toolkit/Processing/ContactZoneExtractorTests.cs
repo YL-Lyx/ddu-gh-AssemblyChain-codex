@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using AssemblyChain.Core.Contracts;
-using AssemblyChain.Core.Toolkit.Processing;
+using AssemblyChain.IO.Contracts;
+using AssemblyChain.Geometry.Toolkit.Processing;
 using Rhino.Geometry;
 using Xunit;
 

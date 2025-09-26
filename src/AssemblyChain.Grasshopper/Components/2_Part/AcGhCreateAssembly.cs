@@ -1,10 +1,9 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using AssemblyChain.Core;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
-using AssemblyChain.Core.Toolkit.Processing;
+using AssemblyChain.Geometry.Toolkit.Processing;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 

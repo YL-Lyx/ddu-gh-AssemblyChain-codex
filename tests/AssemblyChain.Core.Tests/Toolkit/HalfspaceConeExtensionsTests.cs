@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AssemblyChain.Core.Toolkit.Extensions;
+using AssemblyChain.Geometry.Toolkit.Extensions;
 using FluentAssertions;
 using Rhino.Geometry;
 using Xunit;

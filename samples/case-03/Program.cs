@@ -4,10 +4,10 @@ using System.IO;
 using System.Linq;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
-using AssemblyChain.Core.Facade;
-using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Robotics;
-using AssemblyChain.Core.Solver;
+using AssemblyChain.Planning.Facade;
+using AssemblyChain.Planning.Model;
+using AssemblyChain.Robotics;
+using AssemblyChain.Planning.Solver;
 using Newtonsoft.Json.Linq;
 using Rhino.Geometry;
 

@@ -1,6 +1,6 @@
 using System;
 using BenchmarkDotNet.Attributes;
-using AssemblyChain.Core.Contact.Detection.NarrowPhase;
+using AssemblyChain.Geometry.Contact.Detection.NarrowPhase;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
 using Rhino.Geometry;

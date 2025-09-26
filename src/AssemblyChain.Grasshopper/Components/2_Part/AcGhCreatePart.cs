@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
-using AssemblyChain.Core.Toolkit.Processing;
+using AssemblyChain.Geometry.Toolkit.Processing;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 using Rhino.Geometry;

@@ -1,8 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
-using AssemblyChain.Core.Contracts;
-using AssemblyChain.Core.Learning;
-using AssemblyChain.Core.Model;
+using AssemblyChain.IO.Contracts;
+using AssemblyChain.Analysis.Learning;
+using AssemblyChain.Planning.Model;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
 using Rhino.Geometry;
