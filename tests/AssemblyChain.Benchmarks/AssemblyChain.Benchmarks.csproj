@@ -12,6 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AssemblyChain.Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Core\AssemblyChain.Core.csproj" />
   </ItemGroup>
 </Project>

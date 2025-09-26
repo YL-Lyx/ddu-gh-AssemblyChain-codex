@@ -5,7 +5,7 @@
     <DocumentationFile>$(BaseIntermediateOutputPath)$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AssemblyChain.Core\AssemblyChain.Core.csproj" />
-    <ProjectReference Include="..\AssemblyChain.Constraints\AssemblyChain.Constraints.csproj" />
+    <ProjectReference Include="..\Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\Constraints\AssemblyChain.Constraints.csproj" />
   </ItemGroup>
 </Project>

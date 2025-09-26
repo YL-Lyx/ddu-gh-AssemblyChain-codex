@@ -20,15 +20,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AssemblyChain.Core\AssemblyChain.Core.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.Analysis\AssemblyChain.Analysis.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.Constraints\AssemblyChain.Constraints.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.Geometry\AssemblyChain.Geometry.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.Graphs\AssemblyChain.Graphs.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.IO\AssemblyChain.IO.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.Planning\AssemblyChain.Planning.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.Robotics\AssemblyChain.Robotics.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain.Grasshopper\AssemblyChain.Gh.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Core\AssemblyChain.Core.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Analysis\AssemblyChain.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Constraints\AssemblyChain.Constraints.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Geometry\AssemblyChain.Geometry.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Graphs\AssemblyChain.Graphs.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\IO\AssemblyChain.IO.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Planning\AssemblyChain.Planning.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Robotics\AssemblyChain.Robotics.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain\Grasshopper\AssemblyChain.Gh.csproj" />
   </ItemGroup>
 
 </Project>
