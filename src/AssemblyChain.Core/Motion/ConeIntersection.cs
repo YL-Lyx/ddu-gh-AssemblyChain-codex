@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using AssemblyChain.Core.Toolkit.Extensions;
 using Rhino.Geometry;
 
 namespace AssemblyChain.Core.Motion
@@ -15,8 +15,7 @@ namespace AssemblyChain.Core.Motion
         /// </summary>
         public static bool IsPointInHalfspace(Point3d point, Vector3d normal, Point3d origin)
         {
-            var vector = point - origin;
-            return Vector3d.Multiply(vector, normal) >= 0;
+            return point.IsInHalfspace(normal, origin);
         }
 
         /// <summary>
@@ -24,13 +23,7 @@ namespace AssemblyChain.Core.Motion
         /// </summary>
         public static bool IsDirectionFeasible(Vector3d direction, IReadOnlyList<Vector3d> constraintNormals, double tolerance = 1e-9)
         {
-            if (constraintNormals == null || constraintNormals.Count == 0) return true;
-            foreach (var normal in constraintNormals)
-            {
-                var dot = Vector3d.Multiply(direction, normal);
-                if (dot < -tolerance) return false;
-            }
-            return true;
+            return direction.SatisfiesHalfspaceConstraints(constraintNormals, tolerance);
         }
 
         /// <summary>
@@ -38,7 +31,7 @@ namespace AssemblyChain.Core.Motion
         /// </summary>
         public static IReadOnlyList<Vector3d> FindConeBoundary(IReadOnlyList<Vector3d> constraintNormals)
         {
-            return (constraintNormals ?? Array.Empty<Vector3d>()).ToList();
+            return constraintNormals.ToConeBoundary();
         }
 
         /// <summary>
