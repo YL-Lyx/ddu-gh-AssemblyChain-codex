@@ -1,0 +1,40 @@
+name: Code Metrics
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  metrics:
+    name: Generate metrics reports
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run repository audit
+        run: python repo_audit.py src --output reports
+
+      - name: Build metrics summary
+        run: python scripts/generate_metrics_summary.py
+
+      - name: Upload metrics reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-metrics
+          path: |
+            reports/audit_report.json
+            reports/metrics_summary.json
+          if-no-files-found: error
