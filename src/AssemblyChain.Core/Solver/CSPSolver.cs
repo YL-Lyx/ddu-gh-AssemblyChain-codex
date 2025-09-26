@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contact;
 using Rhino.Geometry;
 
 namespace AssemblyChain.Core.Solver

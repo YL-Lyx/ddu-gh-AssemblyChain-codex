@@ -6,8 +6,8 @@ using Rhino.Geometry;
 namespace AssemblyChain.Core.Toolkit.Mesh
 {
     /// <summary>
-    /// Advanced mesh preprocessor
-    /// Provides complete mesh optimization, repair and standardization functionality
+    /// Advanced mesh preprocessor - refactored modular design
+    /// Orchestrates mesh validation, repair, optimization and standardization
     /// </summary>
     public static class MeshPreprocessor
     {
@@ -16,17 +16,43 @@ namespace AssemblyChain.Core.Toolkit.Mesh
         /// </summary>
         public class PreprocessingOptions
         {
-            public bool RepairMesh { get; set; } = true;
-            public bool ComputeNormals { get; set; } = true;
-            public bool OptimizeTopology { get; set; } = true;
-            public bool RemoveDuplicates { get; set; } = true;
-            public bool ValidateMesh { get; set; } = true;
             public double Tolerance { get; set; } = 1e-6;
-            public int MaxFaceCount { get; set; } = 10000;
-            public double MinEdgeLength { get; set; } = 1e-6;
-            public double MaxEdgeLength { get; set; } = double.MaxValue;
+            public bool ValidateMesh { get; set; } = true;
+            public Preprocessing.MeshValidator.ValidationOptions ValidationOptions { get; set; } = new();
+
+            public bool RepairMesh { get; set; } = true;
+            public Preprocessing.MeshRepair.RepairOptions RepairOptions { get; set; } = new();
+
+            public bool OptimizeMesh { get; set; } = true;
+            public Preprocessing.MeshOptimizer.OptimizationOptions OptimizationOptions { get; set; } = new();
+
             public bool TriangulateQuads { get; set; } = true;
-            public bool UnifyNormals { get; set; } = false;
+            public int MaxFaceCount { get; set; } = 10000;
+            public bool ComputeNormals { get; set; } = true;
+
+            public static PreprocessingOptions CreateBalanced()
+            {
+                return new PreprocessingOptions
+                {
+                    ValidateMesh = true,
+                    RepairMesh = true,
+                    OptimizeMesh = true,
+                    TriangulateQuads = true,
+                    ComputeNormals = true
+                };
+            }
+
+            public static PreprocessingOptions CreateFast()
+            {
+                return new PreprocessingOptions
+                {
+                    ValidateMesh = false,
+                    RepairMesh = false,
+                    OptimizeMesh = false,
+                    TriangulateQuads = false,
+                    ComputeNormals = false
+                };
+            }
         }
 
         /// <summary>
@@ -43,14 +69,19 @@ namespace AssemblyChain.Core.Toolkit.Mesh
             public int ProcessedVertexCount { get; set; }
             public List<string> Warnings { get; set; } = new List<string>();
             public List<string> Errors { get; set; } = new List<string>();
+
+            // Sub-operation results
+            public Preprocessing.MeshValidator.ValidationResult ValidationResult { get; set; }
+            public Preprocessing.MeshRepair.RepairResult RepairResult { get; set; }
+            public Preprocessing.MeshOptimizer.OptimizationResult OptimizationResult { get; set; }
         }
 
         /// <summary>
-        /// Preprocesses mesh
+        /// Preprocesses mesh using modular components
         /// </summary>
         public static PreprocessingResult PreprocessMesh(Rhino.Geometry.Mesh inputMesh, PreprocessingOptions options = null)
         {
-            options ??= new PreprocessingOptions();
+            options ??= PreprocessingOptions.CreateBalanced();
             var result = new PreprocessingResult
             {
                 OriginalFaceCount = inputMesh?.Faces.Count ?? 0,
@@ -66,7 +97,7 @@ namespace AssemblyChain.Core.Toolkit.Mesh
 
             try
             {
-                // 深層複製網格
+                // Deep copy mesh
                 var mesh = inputMesh.DuplicateMesh();
                 if (mesh == null)
                 {
@@ -75,19 +106,33 @@ namespace AssemblyChain.Core.Toolkit.Mesh
                     return result;
                 }
 
-                // 1. 網格驗證
+                // 1. Validate mesh
                 if (options.ValidateMesh)
                 {
-                    ValidateMesh(mesh, result, options);
+                    result.ValidationResult = Preprocessing.MeshValidator.ValidateMesh(mesh, options.ValidationOptions);
+                    if (!result.ValidationResult.IsValid)
+                    {
+                        result.Errors.AddRange(result.ValidationResult.Errors);
+                        result.Warnings.AddRange(result.ValidationResult.Warnings);
+                    }
+                    else
+                    {
+                        result.Warnings.AddRange(result.ValidationResult.Warnings);
+                    }
                 }
 
-                // 2. 修復網格
+                // 2. Repair mesh
                 if (options.RepairMesh)
                 {
-                    RepairMesh(mesh, result, options);
+                    result.RepairResult = Preprocessing.MeshRepair.RepairMesh(mesh, options.RepairOptions);
+                    if (!result.RepairResult.Success)
+                    {
+                        result.Errors.AddRange(result.RepairResult.Errors);
+                    }
+                    result.Warnings.AddRange(result.RepairResult.Warnings);
                 }
 
-                // 2.5. 四邊面三角化
+                // 3. Triangulate quads if requested
                 if (options.TriangulateQuads)
                 {
                     var facesBefore = mesh.Faces.Count;
@@ -99,37 +144,42 @@ namespace AssemblyChain.Core.Toolkit.Mesh
                     }
                 }
 
-                // 3. 移除重複頂點
-                if (options.RemoveDuplicates)
+                // 4. Optimize mesh
+                if (options.OptimizeMesh)
                 {
-                    RemoveDuplicateVertices(mesh, result, options);
+                    result.OptimizationResult = Preprocessing.MeshOptimizer.OptimizeMesh(mesh, options.OptimizationOptions);
+                    if (!result.OptimizationResult.Success)
+                    {
+                        result.Errors.AddRange(result.OptimizationResult.Errors);
+                    }
+                    result.Warnings.AddRange(result.OptimizationResult.Warnings);
                 }
 
-                // 4. 優化拓撲
-                if (options.OptimizeTopology)
-                {
-                    OptimizeTopology(mesh, result, options);
-                }
-
-                // 5. 計算法向量
+                // 5. Compute normals if requested
                 if (options.ComputeNormals)
-                {
-                    ComputeNormals(mesh, result, options);
-                }
-
-                // 5.5. 統一法向
-                if (options.UnifyNormals)
                 {
                     try
                     {
-                        mesh.UnifyNormals();
-                        result.Warnings.Add("Unified normals");
+                        mesh.Normals.ComputeNormals();
+                        mesh.FaceNormals.ComputeFaceNormals();
+                        result.Warnings.Add("Computed mesh normals");
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        result.Errors.Add($"Failed to compute normals: {ex.Message}");
+                    }
                 }
 
-                // 6. 最終驗證
-                FinalValidation(mesh, result, options);
+                // 6. Final validation
+                if (options.ValidateMesh)
+                {
+                    var finalValidation = Preprocessing.MeshValidator.FinalValidation(mesh);
+                    if (!finalValidation.IsValid)
+                    {
+                        result.Errors.AddRange(finalValidation.Errors);
+                        result.Warnings.AddRange(finalValidation.Warnings);
+                    }
+                }
 
                 result.ProcessedMesh = mesh;
                 result.ProcessedFaceCount = mesh.Faces.Count;
@@ -148,11 +198,11 @@ namespace AssemblyChain.Core.Toolkit.Mesh
         }
 
         /// <summary>
-        /// 從幾何體創建預處理的網格
+        /// Creates and preprocesses mesh from geometry
         /// </summary>
         public static PreprocessingResult CreatePreprocessedMesh(GeometryBase geometry, PreprocessingOptions options = null)
         {
-            options ??= new PreprocessingOptions();
+            options ??= PreprocessingOptions.CreateBalanced();
             var result = new PreprocessingResult();
 
             try
@@ -193,7 +243,7 @@ namespace AssemblyChain.Core.Toolkit.Mesh
                     return result;
                 }
 
-                // 預處理網格
+                // Preprocess the mesh
                 return PreprocessMesh(mesh, options);
             }
             catch (Exception ex)
@@ -204,7 +254,7 @@ namespace AssemblyChain.Core.Toolkit.Mesh
             }
         }
 
-        #region 網格創建方法
+        #region Mesh Creation Methods
 
         private static Rhino.Geometry.Mesh CreateMeshFromBrep(Rhino.Geometry.Brep brep, PreprocessingOptions options)
         {
@@ -252,170 +302,9 @@ namespace AssemblyChain.Core.Toolkit.Mesh
 
         #endregion
 
-        #region 網格預處理方法
-
-        private static void ValidateMesh(Rhino.Geometry.Mesh mesh, PreprocessingResult result, PreprocessingOptions options)
-        {
-            if (mesh.Faces.Count == 0)
-            {
-                result.Errors.Add("Mesh has no faces");
-                return;
-            }
-
-            if (mesh.Vertices.Count == 0)
-            {
-                result.Errors.Add("Mesh has no vertices");
-                return;
-            }
-
-            // 檢查面數限制
-            if (mesh.Faces.Count > options.MaxFaceCount)
-            {
-                result.Warnings.Add($"Mesh face count ({mesh.Faces.Count}) exceeds maximum ({options.MaxFaceCount})");
-            }
-
-            // 檢查邊長 - 使用簡化的方法
-            var edges = new List<Line>();
-            for (int fi = 0; fi < mesh.Faces.Count; fi++)
-            {
-                var face = mesh.Faces[fi];
-                if (face.IsTriangle)
-                {
-                    var v0 = mesh.Vertices[face.A];
-                    var v1 = mesh.Vertices[face.B];
-                    var v2 = mesh.Vertices[face.C];
-
-                    edges.Add(new Line(v0, v1));
-                    edges.Add(new Line(v1, v2));
-                    edges.Add(new Line(v2, v0));
-                }
-                else
-                {
-                    var v0 = mesh.Vertices[face.A];
-                    var v1 = mesh.Vertices[face.B];
-                    var v2 = mesh.Vertices[face.C];
-                    var v3 = mesh.Vertices[face.D];
-
-                    edges.Add(new Line(v0, v1));
-                    edges.Add(new Line(v1, v2));
-                    edges.Add(new Line(v2, v3));
-                    edges.Add(new Line(v3, v0));
-                }
-            }
-
-            foreach (var edge in edges)
-            {
-                var length = edge.Length;
-
-                if (length < options.MinEdgeLength)
-                {
-                    result.Warnings.Add($"Edge too short: {length:F6} < {options.MinEdgeLength:F6}");
-                }
-
-                if (length > options.MaxEdgeLength)
-                {
-                    result.Warnings.Add($"Edge too long: {length:F6} > {options.MaxEdgeLength:F6}");
-                }
-            }
-        }
-
-        private static void RepairMesh(Rhino.Geometry.Mesh mesh, PreprocessingResult result, PreprocessingOptions options)
-        {
-            var originalFaceCount = mesh.Faces.Count;
-            var originalVertexCount = mesh.Vertices.Count;
-
-            // 修復退化面
-            mesh.Faces.CullDegenerateFaces();
-
-            // 修復法向量
-            if (options.ComputeNormals)
-            {
-                mesh.Normals.Clear();
-                mesh.Normals.ComputeNormals();
-            }
-
-            var repairedFaceCount = mesh.Faces.Count;
-            var repairedVertexCount = mesh.Vertices.Count;
-
-            if (repairedFaceCount != originalFaceCount)
-            {
-                result.Warnings.Add($"Repaired faces: {originalFaceCount} → {repairedFaceCount}");
-            }
-
-            if (repairedVertexCount != originalVertexCount)
-            {
-                result.Warnings.Add($"Repaired vertices: {originalVertexCount} → {repairedVertexCount}");
-            }
-        }
-
-        private static void RemoveDuplicateVertices(Rhino.Geometry.Mesh mesh, PreprocessingResult result, PreprocessingOptions options)
-        {
-            var originalVertexCount = mesh.Vertices.Count;
-            mesh.Compact();
-            var processedVertexCount = mesh.Vertices.Count;
-
-            if (processedVertexCount != originalVertexCount)
-            {
-                result.Warnings.Add($"Removed duplicate/unreferenced vertices: {originalVertexCount} → {processedVertexCount}");
-            }
-        }
-
-        private static void OptimizeTopology(Rhino.Geometry.Mesh mesh, PreprocessingResult result, PreprocessingOptions options)
-        {
-            var originalFaceCount = mesh.Faces.Count;
-
-            mesh.Compact();
-            mesh.Faces.CullDegenerateFaces();
-
-            var optimizedFaceCount = mesh.Faces.Count;
-
-            if (optimizedFaceCount != originalFaceCount)
-            {
-                result.Warnings.Add($"Optimized topology: {originalFaceCount} → {optimizedFaceCount} faces");
-            }
-        }
-
-        private static void ComputeNormals(Rhino.Geometry.Mesh mesh, PreprocessingResult result, PreprocessingOptions options)
-        {
-            try
-            {
-                mesh.Normals.Clear();
-                mesh.Normals.ComputeNormals();
-                result.Warnings.Add("Successfully computed normals");
-            }
-            catch (Exception ex)
-            {
-                result.Warnings.Add($"Normal computation failed: {ex.Message}");
-            }
-        }
-
-        private static void FinalValidation(Rhino.Geometry.Mesh mesh, PreprocessingResult result, PreprocessingOptions options)
-        {
-            if (mesh.Faces.Count == 0)
-            {
-                result.Errors.Add("Mesh has no faces after preprocessing");
-                return;
-            }
-
-            if (mesh.Vertices.Count == 0)
-            {
-                result.Errors.Add("Mesh has no vertices after preprocessing");
-                return;
-            }
-
-            if (!mesh.IsClosed)
-            {
-                result.Warnings.Add("Mesh is not closed");
-            }
-
-            bool isOriented, hasBoundary;
-            var isManifold = mesh.IsManifold(true, out isOriented, out hasBoundary);
-            if (!isManifold)
-            {
-                result.Warnings.Add("Mesh is not manifold");
-            }
-        }
-
+        /// <summary>
+        /// Generates a summary report of the preprocessing operation
+        /// </summary>
         private static void GenerateReport(PreprocessingResult result)
         {
             var report = new System.Text.StringBuilder();
@@ -442,13 +331,23 @@ namespace AssemblyChain.Core.Toolkit.Mesh
                 }
             }
 
+            // Add sub-operation summaries
+            if (result.ValidationResult != null)
+            {
+                report.AppendLine($"\nValidation: {result.ValidationResult.IsValid} ({result.ValidationResult.TotalFaceCount} faces checked)");
+            }
+
+            if (result.RepairResult != null)
+            {
+                report.AppendLine($"Repair: {result.RepairResult.Success} ({result.RepairResult.HolesFilled} holes filled, {result.RepairResult.DuplicateFacesRemoved} duplicates removed)");
+            }
+
+            if (result.OptimizationResult != null)
+            {
+                report.AppendLine($"Optimization: {result.OptimizationResult.Success} ({result.OptimizationResult.VertexReductionPercentage:F1}% vertex reduction)");
+            }
+
             result.Report = report.ToString();
         }
-
-        #endregion
     }
 }
-
-
-
-

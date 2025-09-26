@@ -117,6 +117,11 @@ namespace AssemblyChain.Core.Domain.Entities
         public void AddPart(Part part)
         {
             if (part == null) throw new ArgumentNullException(nameof(part));
+
+            // Check for duplicate ID
+            if (_parts.Any(p => p.Id == part.Id))
+                throw new ArgumentException($"Part with ID {part.Id} already exists in the assembly", nameof(part));
+
             _parts.Add(part);
         }
 

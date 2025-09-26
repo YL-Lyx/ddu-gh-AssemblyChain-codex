@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
+using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contact;
 
 namespace AssemblyChain.Core.Toolkit.Intersection
 {
@@ -37,6 +39,81 @@ namespace AssemblyChain.Core.Toolkit.Intersection
             public TimeSpan ExecutionTime { get; set; }
             public int Mesh1Faces { get; set; }
             public int Mesh2Faces { get; set; }
+        }
+
+        /// <summary>
+        /// Contact detection result for mesh-mesh interactions.
+        /// </summary>
+        public class ContactDetectionResult
+        {
+            public List<ContactData> Contacts { get; set; } = new List<ContactData>();
+            public BoundingBox IntersectionBounds { get; set; } = BoundingBox.Empty;
+            public double IntersectionVolume { get; set; }
+            public bool HasIntersection { get; set; }
+            public string PartAId { get; set; }
+            public string PartBId { get; set; }
+        }
+
+        /// <summary>
+        /// Detects contacts between two meshes based on bounding box intersection.
+        /// </summary>
+        public static ContactDetectionResult DetectContactsBasedOnIntersection(
+            Rhino.Geometry.Mesh meshA,
+            Rhino.Geometry.Mesh meshB,
+            DetectionOptions options,
+            string partAId,
+            string partBId)
+        {
+            var result = new ContactDetectionResult
+            {
+                PartAId = partAId,
+                PartBId = partBId
+            };
+
+            // Check bounding box intersection
+            var bboxA = meshA.GetBoundingBox(true);
+            var bboxB = meshB.GetBoundingBox(true);
+
+            if (bboxA.IsValid && bboxB.IsValid)
+            {
+                // Calculate intersection volume as contact area approximation
+                var intersection = BoundingBox.Intersection(bboxA, bboxB);
+                if (intersection.IsValid)
+                {
+                    var volume = intersection.Volume;
+                    if (volume > 0) // Has intersection volume
+                    {
+                        var area = System.Math.Sqrt(volume) * 10; // Simplified area calculation
+
+                        if (area >= options.MinPatchArea)
+                        {
+                            // Calculate contact normal (simplified)
+                            var normal = Vector3d.ZAxis;
+
+                            var zone = new ContactZone(null, area, 0.0);
+                            var plane = new ContactPlane(
+                                new Plane(Point3d.Origin, normal),
+                                normal,
+                                Point3d.Origin);
+
+                            var contact = new ContactData(
+                                partAId,
+                                partBId,
+                                ContactType.Face,
+                                zone,
+                                plane,
+                                0.5, 0.1, false);
+
+                            result.Contacts.Add(contact);
+                            result.HasIntersection = true;
+                            result.IntersectionBounds = intersection;
+                            result.IntersectionVolume = volume;
+                        }
+                    }
+                }
+            }
+
+            return result;
         }
 
         /// <summary>

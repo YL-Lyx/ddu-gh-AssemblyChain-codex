@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Graph;
 using Rhino.Geometry;
 using AssemblyChain.Core.Domain.Entities;
-using AssemblyChain.Core.Contact;
 
-namespace AssemblyChain.Core.Graph
+namespace AssemblyChain.Core.Contact
 {
     /// <summary>
     /// Builds blocking graphs from contact information.
@@ -20,7 +20,7 @@ namespace AssemblyChain.Core.Graph
             ContactModel contacts,
             GraphOptions options)
         {
-            var contactPatches = ConvertToContactPatches(contacts.Contacts);
+            var contactRelations = contacts.Relations;
 
             // Build minimal placeholder graphs from contacts
             var nodeSet = new HashSet<int>();
@@ -50,30 +50,6 @@ namespace AssemblyChain.Core.Graph
             );
         }
 
-        private static IReadOnlyList<ContactPatch> ConvertToContactPatches(IReadOnlyList<ContactData> contacts)
-        {
-            var patches = new List<ContactPatch>();
-
-            foreach (var contact in contacts)
-            {
-                if (!TryParsePartIndex(contact.PartAId, out int partA) ||
-                    !TryParsePartIndex(contact.PartBId, out int partB))
-                {
-                    continue;
-                }
-
-                var patch = new ContactPatch(
-                    I: partA,
-                    J: partB,
-                    NormalIJ: contact.ConstraintVector,
-                    Area: contact.Area,
-                    FrictionMu: contact.FrictionCoefficient
-                );
-                patches.Add(patch);
-            }
-
-            return patches;
-        }
 
         private static bool TryParsePartIndex(string partId, out int index)
         {

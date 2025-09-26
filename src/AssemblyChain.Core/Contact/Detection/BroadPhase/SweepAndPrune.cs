@@ -2,9 +2,73 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
+using AssemblyChain.Core.Domain.Entities;
+using AssemblyChain.Core.Model;
 
 namespace AssemblyChain.Core.Contact.Detection.BroadPhase
 {
+    /// <summary>
+    /// Factory for creating broad phase collision detection algorithms.
+    /// </summary>
+    public static class BroadPhaseFactory
+    {
+        /// <summary>
+        /// Creates a broad phase algorithm based on the specified type.
+        /// </summary>
+        public static IBroadPhase Create(string algorithmType)
+        {
+            return algorithmType.ToLowerInvariant() switch
+            {
+                "sap" or "sweepandprune" => new SweepAndPruneAlgorithm(),
+                "rtree" => new RTreeAlgorithm(),
+                _ => new SweepAndPruneAlgorithm() // Default
+            };
+        }
+    }
+
+    /// <summary>
+    /// Interface for broad phase collision detection algorithms.
+    /// </summary>
+    public interface IBroadPhase
+    {
+        /// <summary>
+        /// Gets candidate pairs that might be in collision.
+        /// </summary>
+        List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options);
+    }
+
+    /// <summary>
+    /// Sweep and Prune broad phase implementation.
+    /// </summary>
+    public class SweepAndPruneAlgorithm : IBroadPhase
+    {
+        public List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options)
+        {
+            return SweepAndPrune.GetCandidatePairs(parts, options);
+        }
+    }
+
+    /// <summary>
+    /// R-Tree broad phase implementation (placeholder).
+    /// </summary>
+    public class RTreeAlgorithm : IBroadPhase
+    {
+        public List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options)
+        {
+            // Placeholder - would implement R-Tree based broad phase
+            // For now, return all possible pairs
+            var pairs = new List<(int i, int j)>();
+            for (int i = 0; i < parts.Count; i++)
+            {
+                for (int j = i + 1; j < parts.Count; j++)
+                {
+                    pairs.Add((i, j));
+                }
+            }
+            return pairs;
+        }
+    }
+
     /// <summary>
     /// Sweep and Prune broad phase collision detection algorithm.
     /// Efficiently finds potentially colliding pairs using sorted axis projections.
@@ -183,6 +247,24 @@ namespace AssemblyChain.Core.Contact.Detection.BroadPhase
         {
             var boundingBoxes = geometries.Select(g => g?.GetBoundingBox(true) ?? BoundingBox.Empty).ToList();
             return Execute(boundingBoxes, options);
+        }
+
+        /// <summary>
+        /// Performs SAP on parts using their bounding boxes.
+        /// </summary>
+        public static SapResult ExecuteOnParts(IReadOnlyList<Part> parts, SapOptions options = null)
+        {
+            var boundingBoxes = parts.Select(p => p?.BoundingBox ?? BoundingBox.Empty).ToList();
+            return Execute(boundingBoxes, options);
+        }
+
+        /// <summary>
+        /// Gets candidate pairs that might be in collision using Sweep and Prune.
+        /// </summary>
+        public static List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options)
+        {
+            var result = ExecuteOnParts(parts, new SapOptions { Axis = 0 }); // Default to X-axis
+            return result.CandidatePairs;
         }
     }
 }

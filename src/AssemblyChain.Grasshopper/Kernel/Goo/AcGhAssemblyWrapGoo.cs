@@ -8,23 +8,23 @@ namespace AssemblyChain.Gh.Kernel
     /// <summary>
     /// Grasshopper Goo wrapper for unified Assembly
     /// </summary>
-    public class AcGhAssemblyGoo : GH_Goo<Assembly>
+    public class AcGhAssemblyWrapGoo : GH_Goo<Assembly>
     {
         private AssemblyModel _cachedAssemblyModel;
         private string _cachedAssemblyHash = string.Empty;
 
-        public AcGhAssemblyGoo()
+        public AcGhAssemblyWrapGoo()
         {
         }
 
-        public AcGhAssemblyGoo(Assembly value)
+        public AcGhAssemblyWrapGoo(Assembly value)
         {
             Value = value;
         }
 
         public override IGH_Goo Duplicate()
         {
-            return Value == null ? new AcGhAssemblyGoo() : new AcGhAssemblyGoo(Value);
+            return Value == null ? new AcGhAssemblyWrapGoo() : new AcGhAssemblyWrapGoo(Value);
         }
 
         public override bool IsValid => Value != null;
@@ -45,7 +45,7 @@ namespace AssemblyChain.Gh.Kernel
                 case Assembly assembly:
                     Value = assembly;
                     return true;
-                case AcGhAssemblyGoo goo:
+                case AcGhAssemblyWrapGoo goo:
                     Value = goo.Value;
                     return true;
                 default:

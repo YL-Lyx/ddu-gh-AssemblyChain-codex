@@ -23,22 +23,22 @@ namespace AssemblyChain.Core.Domain.ValueObjects
         /// <summary>
         /// Name of the part geometry
         /// </summary>
-        public string Name { get; set; }
+        public string Name { get; }
 
         /// <summary>
         /// Original geometry before any processing
         /// </summary>
-        public GeometryBase OriginalGeometry { get; set; }
+        public GeometryBase OriginalGeometry { get; }
 
         /// <summary>
         /// Type of the original geometry (Mesh, Brep, etc.)
         /// </summary>
-        public string OriginalGeometryType { get; set; }
+        public string OriginalGeometryType { get; }
 
         /// <summary>
         /// Additional metadata for the part
         /// </summary>
-        public Dictionary<string, object> Metadata { get; }
+        public IReadOnlyDictionary<string, object> Metadata { get; }
 
         /// <summary>
         /// Whether this part has valid geometry
@@ -53,6 +53,8 @@ namespace AssemblyChain.Core.Domain.ValueObjects
             IndexId = indexId;
             Mesh = mesh?.DuplicateMesh() ?? throw new ArgumentNullException(nameof(mesh));
             Name = $"PartGeometry_{indexId}";
+            OriginalGeometry = mesh;
+            OriginalGeometryType = "Mesh";
             Metadata = new Dictionary<string, object>();
         }
 
@@ -76,8 +78,10 @@ namespace AssemblyChain.Core.Domain.ValueObjects
 
         protected override IEnumerable<object> GetEqualityComponents()
         {
-            yield return Mesh; // Note: This might not be ideal for large meshes, but follows value object semantics
+            yield return IndexId;
+            yield return Name;
             yield return OriginalGeometryType;
+            yield return Mesh; // Note: This might not be ideal for large meshes, but follows value object semantics
         }
     }
 }

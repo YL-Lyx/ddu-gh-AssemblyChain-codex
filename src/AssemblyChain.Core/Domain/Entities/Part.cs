@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AssemblyChain.Core.Domain.Common;
 using AssemblyChain.Core.Domain.ValueObjects;
 
@@ -30,6 +31,11 @@ namespace AssemblyChain.Core.Domain.Entities
         public MaterialProperties Material { get; private set; }
 
         /// <summary>
+        /// Additional metadata for the part
+        /// </summary>
+        public Dictionary<string, object> Metadata { get; private set; }
+
+        /// <summary>
         /// Whether this part has valid geometry
         /// </summary>
         public bool HasValidGeometry => Geometry?.HasValidGeometry ?? false;
@@ -45,10 +51,15 @@ namespace AssemblyChain.Core.Domain.Entities
         public Part(int id, string name, PartGeometry geometry)
             : base(id)
         {
+            ArgumentNullException.ThrowIfNull(geometry);
+            if (id != geometry.IndexId)
+                throw new ArgumentException($"Part ID {id} must match geometry IndexId {geometry.IndexId}", nameof(id));
+
             Name = name ?? $"Part_{id}";
-            Geometry = geometry ?? throw new ArgumentNullException(nameof(geometry));
+            Geometry = geometry;
             Physics = PhysicsProperties.Default;
             Material = MaterialProperties.Steel; // Default material
+            Metadata = new Dictionary<string, object>();
         }
 
         /// <summary>
@@ -57,10 +68,15 @@ namespace AssemblyChain.Core.Domain.Entities
         public Part(int id, string name, PartGeometry geometry, PhysicsProperties physics)
             : base(id)
         {
+            ArgumentNullException.ThrowIfNull(geometry);
+            if (id != geometry.IndexId)
+                throw new ArgumentException($"Part ID {id} must match geometry IndexId {geometry.IndexId}", nameof(id));
+
             Name = name ?? $"Part_{id}";
-            Geometry = geometry ?? throw new ArgumentNullException(nameof(geometry));
+            Geometry = geometry;
             Physics = physics ?? PhysicsProperties.Default;
             Material = MaterialProperties.Steel;
+            Metadata = new Dictionary<string, object>();
         }
 
         /// <summary>
@@ -69,10 +85,15 @@ namespace AssemblyChain.Core.Domain.Entities
         public Part(int id, string name, PartGeometry geometry, PhysicsProperties physics, MaterialProperties material)
             : base(id)
         {
+            ArgumentNullException.ThrowIfNull(geometry);
+            if (id != geometry.IndexId)
+                throw new ArgumentException($"Part ID {id} must match geometry IndexId {geometry.IndexId}", nameof(id));
+
             Name = name ?? $"Part_{id}";
-            Geometry = geometry ?? throw new ArgumentNullException(nameof(geometry));
+            Geometry = geometry;
             Physics = physics ?? PhysicsProperties.Default;
             Material = material ?? MaterialProperties.Steel;
+            Metadata = new Dictionary<string, object>();
         }
 
         /// <summary>
@@ -131,14 +152,20 @@ namespace AssemblyChain.Core.Domain.Entities
         /// </summary>
         public Rhino.Geometry.BoundingBox BoundingBox => Geometry?.BoundingBox ?? Rhino.Geometry.BoundingBox.Empty;
 
-        // Added placeholders for missing properties referenced in other code
-        public int IndexId { get; set; } = -1;  // Placeholder for IndexId
+        /// <summary>
+        /// Gets the index ID from the geometry
+        /// </summary>
+        public int IndexId => Geometry?.IndexId ?? -1;
 
-        // Placeholder for Mesh (will be refined later)
-        public Rhino.Geometry.Mesh Mesh => new Rhino.Geometry.Mesh(); // Simplified placeholder
+        /// <summary>
+        /// Gets the mesh from the geometry
+        /// </summary>
+        public Rhino.Geometry.Mesh Mesh => Geometry?.Mesh;
 
-        // Placeholder for OriginalGeometry (will be refined later)
-        public Rhino.Geometry.GeometryBase OriginalGeometry => Geometry?.OriginalGeometry ?? new Rhino.Geometry.Mesh();
+        /// <summary>
+        /// Gets the original geometry from the geometry object
+        /// </summary>
+        public Rhino.Geometry.GeometryBase OriginalGeometry => Geometry?.OriginalGeometry;
 
         // Placeholder for OriginalGeometryType (will be refined later)
         public string OriginalGeometryType => Geometry?.OriginalGeometryType ?? "Mesh";

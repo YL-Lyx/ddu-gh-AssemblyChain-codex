@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
+using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Domain.Entities;
 
 namespace AssemblyChain.Core.Toolkit.Brep
 {
@@ -324,6 +327,170 @@ namespace AssemblyChain.Core.Toolkit.Brep
             {
                 return obj.Normal.GetHashCode() ^ obj.Origin.GetHashCode();
             }
+        }
+
+        /// <summary>
+        /// Result of coplanar contact detection.
+        /// </summary>
+        public class CoplanarContactResult
+        {
+            public List<ContactData> Contacts { get; set; } = new List<ContactData>();
+            public int TotalFacePairs { get; set; }
+            public int CoplanarPairs { get; set; }
+            public int OverlappingPairs { get; set; }
+            public int ValidOverlaps { get; set; }
+            public TimeSpan ExecutionTime { get; set; }
+        }
+
+        /// <summary>
+        /// Detects coplanar contacts between two Breps.
+        /// </summary>
+        public static CoplanarContactResult DetectCoplanarContacts(
+            Rhino.Geometry.Brep brepA,
+            Rhino.Geometry.Brep brepB,
+            Domain.Entities.Part partA,
+            Domain.Entities.Part partB,
+            DetectionOptions options)
+        {
+            var result = new CoplanarContactResult();
+            var startTime = DateTime.Now;
+            var seen = new HashSet<string>();
+
+            // Adaptive parameters - based on geometry scale
+            var diagA = brepA.GetBoundingBox(true).Diagonal.Length;
+            var diagB = brepB.GetBoundingBox(true).Diagonal.Length;
+            var diag = System.Math.Max(diagA, diagB);
+            var adaptiveTol = System.Math.Max(options.Tolerance, diag * ContactDetectionConstants.AdaptiveTolFactor);
+            var adaptiveMinArea = System.Math.Max(options.MinPatchArea, diag * diag * ContactDetectionConstants.AdaptiveMinAreaFactor);
+
+            System.Diagnostics.Debug.WriteLine($"Adaptive parameters - Diag: {diag:F6}, Tol: {adaptiveTol:F6}, MinArea: {adaptiveMinArea:F6}");
+
+            // Traverse all faces in brepA
+            for (int i = 0; i < brepA.Faces.Count; i++)
+            {
+                var faceA = brepA.Faces[i];
+                if (!faceA.IsPlanar(adaptiveTol) || !faceA.TryGetPlane(out var planeA)) continue;
+
+                // Traverse all faces in brepB
+                for (int j = 0; j < brepB.Faces.Count; j++)
+                {
+                    var faceB = brepB.Faces[j];
+                    if (!faceB.IsPlanar(adaptiveTol) || !faceB.TryGetPlane(out var planeB)) continue;
+
+                    result.TotalFacePairs++;
+
+                    // Check if coplanar - using more relaxed tolerance
+                    var angle = Vector3d.VectorAngle(planeA.Normal, planeB.Normal);
+                    var isCoplanar = angle <= System.Math.PI / 180.0 * ContactDetectionConstants.CoplanarAngleTolerance ||
+                                   System.Math.Abs(angle - System.Math.PI) <= System.Math.PI / 180.0 * ContactDetectionConstants.CoplanarAngleTolerance;
+
+                    if (!isCoplanar) continue;
+
+                    var distance = System.Math.Abs(planeA.DistanceTo(planeB.Origin));
+                    if (distance > adaptiveTol * ContactDetectionConstants.CoplanarDistanceFactor) continue;
+
+                    result.CoplanarPairs++;
+
+                    // Check AABB overlap - using more relaxed tolerance
+                    var bbA = faceA.GetBoundingBox(true);
+                    var bbB = faceB.GetBoundingBox(true);
+                    bbA.Inflate(adaptiveTol * ContactDetectionConstants.BoundingBoxInflateFactor);
+                    bbB.Inflate(adaptiveTol * ContactDetectionConstants.BoundingBoxInflateFactor);
+                    var bboxIntersection = BoundingBox.Intersection(bbA, bbB);
+                    if (!bboxIntersection.IsValid) continue;
+
+                    result.OverlappingPairs++;
+
+                    // Create face boundary curves
+                    var loopsA = faceA.Loops.Where(l => l.LoopType == BrepLoopType.Outer)
+                                           .Select(l => l.To3dCurve())
+                                           .Where(c => c != null && c.IsValid).ToList();
+                    var loopsB = faceB.Loops.Where(l => l.LoopType == BrepLoopType.Outer)
+                                           .Select(l => l.To3dCurve())
+                                           .Where(c => c != null && c.IsValid).ToList();
+
+                    if (loopsA.Count == 0 || loopsB.Count == 0) continue;
+
+                    // Join curves in loopsA
+                    var joinedA = Curve.JoinCurves(loopsA.ToArray(), adaptiveTol);
+                    var curveA = (joinedA != null && joinedA.Length > 0) ? joinedA[0] : loopsA[0];
+
+                    // Join curves in loopsB
+                    var joinedB = Curve.JoinCurves(loopsB.ToArray(), adaptiveTol);
+                    var curveB = (joinedB != null && joinedB.Length > 0) ? joinedB[0] : loopsB[0];
+
+                    // Project to common plane
+                    var projA = Curve.ProjectToPlane(curveA, planeA);
+                    var projB = Curve.ProjectToPlane(curveB, planeA);
+
+                    if (projA == null || projB == null || !projA.IsValid || !projB.IsValid) continue;
+
+                    // Detect overlap
+                    var overlap = Curve.CreateBooleanIntersection(projA, projB, adaptiveTol);
+                    if (overlap == null || overlap.Length == 0) continue;
+
+                    result.ValidOverlaps++;
+
+                    // Create contact patches
+                    var overlapBrep = Rhino.Geometry.Brep.CreatePlanarBreps(overlap, adaptiveTol);
+                    if (overlapBrep == null || overlapBrep.Length == 0) continue;
+
+                    foreach (var patch in overlapBrep)
+                    {
+                        var area = AreaMassProperties.Compute(patch)?.Area ?? 0.0;
+                        if (area < adaptiveMinArea) continue;
+
+                        if (!patch.Faces[0].TryGetPlane(out var pl)) pl = planeA;
+
+                        // Use centroid, area and plane for deduplication
+                        var centroid = patch.GetBoundingBox(true).Center;
+                        var centroidKey = Toolkit.Utils.Hashing.ForCentroid(centroid, adaptiveTol);
+                        var areaKey = Toolkit.Utils.Hashing.ForArea(area, adaptiveTol);
+                        var planeKey = Toolkit.Utils.Hashing.ForPlane(pl, adaptiveTol);
+                        var key = $"{planeKey}_{centroidKey}_{areaKey}";
+
+                        if (seen.Add(key))
+                        {
+                            result.Contacts.Add(MakeContact(partA, partB)(patch, ContactType.Face, pl));
+                        }
+                    }
+                }
+            }
+
+                   System.Diagnostics.Debug.WriteLine($"Face pair analysis: {result.TotalFacePairs} total pairs, {result.CoplanarPairs} coplanar, {result.OverlappingPairs} overlapping, {result.ValidOverlaps} with valid overlaps");
+                   System.Diagnostics.Debug.WriteLine($"DetectCoplanarContacts completed - Found {result.Contacts.Count} unique contacts");
+
+            var endTime = DateTime.Now;
+            result.ExecutionTime = endTime - startTime;
+
+            return result;
+        }
+
+        /// <summary>
+        /// Creates a contact data factory function.
+        /// </summary>
+        private static Func<GeometryBase, ContactType, Plane, ContactData> MakeContact(
+            Domain.Entities.Part A, Domain.Entities.Part B)
+        {
+            return (geom, type, plane) =>
+            {
+                var mu = 0.5 * (A.Material.FrictionCoefficient + B.Material.FrictionCoefficient);
+                var e = 0.5 * (A.Material.RestitutionCoefficient + B.Material.RestitutionCoefficient);
+                double area = 0, len = 0;
+                if (geom is Rhino.Geometry.Brep gb) { using var amp = AreaMassProperties.Compute(gb); area = amp?.Area ?? 0; }
+                if (geom is Curve gc) len = gc.GetLength();
+
+                // Calculate centroid of contact surface
+                var centroid = geom.GetBoundingBox(true).Center;
+
+                // Construct plane with centroid as origin and normal as Z-axis
+                var contactPlane = new Plane(centroid, plane.Normal);
+
+                var zone = new ContactZone(geom, area, len);
+                var cp = new ContactPlane(contactPlane, contactPlane.Normal, contactPlane.Origin);
+                var block = Toolkit.Utils.ContactDetectionHelpers.IsContactBlocking(type, mu);
+                return new ContactData($"P{A.Id:D4}", $"P{B.Id:D4}", type, zone, cp, mu, e, block);
+            };
         }
     }
 }

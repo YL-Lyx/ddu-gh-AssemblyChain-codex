@@ -12,7 +12,7 @@ namespace AssemblyChain.Gh.Kernel
     public class AcGhCreateAssembly : GH_Component
     {
         public AcGhCreateAssembly()
-            : base("Create Assembly", "CA", "Create an AssemblyChain assembly from parts", "AssemblyChain", "1|Part")
+            : base("Create Assembly", "CA", "Create an AssemblyChain assembly from parts", "AssemblyChain", "2|Part")
         {
         }
 
@@ -24,7 +24,7 @@ namespace AssemblyChain.Gh.Kernel
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            pManager.AddParameter(new AcGhAssemblyParam(), "Assembly", "A", "AssemblyChain unified assembly from parts", GH_ParamAccess.item);
+            pManager.AddParameter(new AcGhAssemblyWrapParam(), "Assembly", "A", "AssemblyChain unified assembly from parts", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess dataAccess)
@@ -55,16 +55,20 @@ namespace AssemblyChain.Gh.Kernel
                 {
                     try
                     {
-                        if (goo is AcGhPartGeometryGoo geoGoo)
+                        if (goo is AcGhPartWrapGoo partGoo && partGoo.Value != null)
                         {
-                            validParts.Add(new Part(geoGoo.Value.IndexId, geoGoo.Value.Name, geoGoo.Value));
-                            successCount++;
-                        }
-                        else if (goo is AcGhPartPhysicsGoo physGoo && physGoo.Value != null)
-                        {
-                            // PartPhysics Goo contains a complete Part with geometry and physics
-                            validParts.Add(physGoo.Value);
-                            successCount++;
+                            // Unified Goo contains either PartGeometry or complete Part
+                            var part = partGoo.CompletePart;
+                            if (part != null)
+                            {
+                                validParts.Add(part);
+                                successCount++;
+                            }
+                            else
+                            {
+                                failureCount++;
+                                AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Invalid part data in unified Goo");
+                            }
                         }
                         else if (goo is GH_ObjectWrapper wrapper && wrapper.Value is Part part)
                         {
@@ -101,7 +105,7 @@ namespace AssemblyChain.Gh.Kernel
                 }
 
                 // Set output
-                var assemblyGoo = new AcGhAssemblyGoo(assembly);
+                var assemblyGoo = new AcGhAssemblyWrapGoo(assembly);
                 dataAccess.SetData(0, assemblyGoo);
 
                 // Report results

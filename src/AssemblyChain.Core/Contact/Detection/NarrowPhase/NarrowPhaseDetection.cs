@@ -10,7 +10,7 @@ using AssemblyChain.Core.Contact;
 namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
 {
     /// <summary>
-    /// 窄相位檢測 - 詳細的接觸檢測路由和主邏輯
+    /// 窄相位檢測協調器 - 負責路由到專門的檢測模塊
     /// </summary>
     public static class NarrowPhaseDetection
     {
@@ -42,27 +42,21 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
 
             var startTime = DateTime.Now;
 
-            // 路由到對應的檢測方法
+            // 根據幾何類型路由到對應的專門檢測器
             if (brepA != null && brepB != null)
             {
-                System.Diagnostics.Debug.WriteLine($"→ Routing to Brep-Brep detection");
-                // Placeholder: return empty
+                System.Diagnostics.Debug.WriteLine($"→ Routing to BrepContactDetector");
+                res.AddRange(BrepContactDetector.DetectBrepContacts(A, B, options));
             }
             else if (A.Mesh != null && B.Mesh != null)
             {
-                System.Diagnostics.Debug.WriteLine($"→ Routing to Mesh-Mesh detection");
-                // Placeholder: return empty
+                System.Diagnostics.Debug.WriteLine($"→ Routing to MeshContactDetector");
+                res.AddRange(MeshContactDetector.DetectMeshContacts(A, B, options));
             }
-            else 
+            else
             {
-                System.Diagnostics.Debug.WriteLine($"→ Routing to Mixed geometry detection");
-                var mA = A.Mesh ?? (brepA != null ? 
-                    Rhino.Geometry.Mesh.CreateFromBrep(brepA, MeshingParameters.Default)?.Aggregate(new Rhino.Geometry.Mesh(), (acc, m) => { acc.Append(m); return acc; }) 
-                    : null);
-                var mB = B.Mesh ?? (brepB != null ? 
-                    Rhino.Geometry.Mesh.CreateFromBrep(brepB, MeshingParameters.Default)?.Aggregate(new Rhino.Geometry.Mesh(), (acc, m) => { acc.Append(m); return acc; }) 
-                    : null);
-                // Placeholder
+                System.Diagnostics.Debug.WriteLine($"→ Routing to MixedGeoContactDetector");
+                res.AddRange(MixedGeoContactDetector.DetectMixedGeoContacts(A, B, options));
             }
 
             var endTime = DateTime.Now;
@@ -78,5 +72,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
 
         public static ContactData DetectContact(Part partA, Part partB)
             => DetectContactsForPair(partA, partB).FirstOrDefault();
+
+
     }
 }
