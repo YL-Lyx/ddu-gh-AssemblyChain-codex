@@ -4,7 +4,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core", "src\AssemblyChain\Core\AssemblyChain.Core.csproj", "{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Grasshopper", "src\AssemblyChain\Grasshopper\AssemblyChain.Gh.csproj", "{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Grasshopper", "src\AssemblyChain.Grasshopper\AssemblyChain.Gh.csproj", "{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Geometry.Abstractions", "src\AssemblyChain\Geometry.Abstractions\AssemblyChain.Geometry.Abstractions.csproj", "{B308A8D2-ED06-446F-99EB-F00CC428B87E}"
 EndProject

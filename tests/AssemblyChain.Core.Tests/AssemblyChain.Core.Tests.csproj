@@ -28,7 +28,7 @@
     <ProjectReference Include="..\..\src\AssemblyChain\IO\AssemblyChain.IO.csproj" />
     <ProjectReference Include="..\..\src\AssemblyChain\Planning\AssemblyChain.Planning.csproj" />
     <ProjectReference Include="..\..\src\AssemblyChain\Robotics\AssemblyChain.Robotics.csproj" />
-    <ProjectReference Include="..\..\src\AssemblyChain\Grasshopper\AssemblyChain.Gh.csproj" />
+    <ProjectReference Include="..\..\src\AssemblyChain.Grasshopper\AssemblyChain.Gh.csproj" />
   </ItemGroup>
 
 </Project>
