@@ -16,6 +16,7 @@ namespace AssemblyChain.Core.Facade
     public sealed class AssemblyChainFacade
     {
         private readonly IContactUtils _contactUtils;
+        private readonly IContactDetector _contactDetector;
         private readonly Func<SolverType, ISolver> _solverFactory;
         private readonly Func<SolverType, ISolverBackend> _backendSelector;
         private readonly OnnxInferenceService _inferenceService;
@@ -31,12 +32,14 @@ namespace AssemblyChain.Core.Facade
             IContactUtils? contactUtils = null,
             Func<SolverType, ISolver>? solverFactory = null,
             OnnxInferenceService? inferenceService = null,
-            Func<SolverType, ISolverBackend>? backendSelector = null)
+            Func<SolverType, ISolverBackend>? backendSelector = null,
+            IContactDetector? contactDetector = null)
         {
             _contactUtils = contactUtils ?? new ContactUtils();
             _backendSelector = backendSelector ?? (mode => ResolveDefaultBackend(mode));
             _solverFactory = solverFactory ?? (mode => ResolveDefaultSolver(mode, _backendSelector(mode)));
             _inferenceService = inferenceService ?? new OnnxInferenceService();
+            _contactDetector = contactDetector ?? new ContactDetector();
         }
 
         /// <summary>
@@ -56,11 +59,30 @@ namespace AssemblyChain.Core.Facade
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var contacts = request.Contacts ?? DetectContacts(request.Assembly, request.Detection ?? new DetectionOptions());
-            var constraints = request.Constraints ?? ConstraintModelFactory.CreateEmpty(request.Assembly);
+            var assemblyModel = request.Assembly as AssemblyModel
+                ?? throw new InvalidOperationException("AssemblyPlanRequest requires an AssemblyModel instance.");
 
-            var solver = _solverFactory(NormalizeSolverType(request.Solver.SolverType));
-            var solverResult = solver.Solve(request.Assembly, contacts, constraints, request.Solver);
+            var contactsModel = request.Contacts == null
+                ? null
+                : request.Contacts as ContactModel
+                    ?? throw new InvalidOperationException("Unsupported contact model implementation.");
+
+            var constraintsModel = request.Constraints == null
+                ? null
+                : request.Constraints as ConstraintModel
+                    ?? throw new InvalidOperationException("Unsupported constraint model implementation.");
+
+            var solverOptions = request.Solver is SolverOptions opts
+                ? opts
+                : throw new InvalidOperationException("Unsupported solver options implementation.");
+
+            var contacts = contactsModel ?? DetectContacts(assemblyModel, request.Detection ?? new DetectionOptions());
+            var constraints = constraintsModel ?? ConstraintModelFactory.CreateEmpty(assemblyModel);
+
+            var solverType = NormalizeSolverType(solverOptions.SolverType);
+            var solver = _solverFactory(solverType);
+            var normalizedOptions = solverOptions with { SolverType = solverType };
+            var solverResult = solver.Solve(assemblyModel, contacts, constraints, normalizedOptions);
             return new AssemblyPlanResult(contacts, solverResult);
         }
 
@@ -96,7 +118,7 @@ namespace AssemblyChain.Core.Facade
         /// <summary>
         /// Detects contacts for the supplied assembly.
         /// </summary>
-        public ContactModel DetectContacts(AssemblyModel assembly, DetectionOptions options)
+        public ContactModel DetectContacts(IModelQuery assembly, DetectionOptions options)
         {
             if (assembly == null)
             {
@@ -104,7 +126,7 @@ namespace AssemblyChain.Core.Facade
             }
 
             options ??= new DetectionOptions();
-            return ContactDetection.DetectContacts(assembly, options);
+            return _contactDetector.DetectContacts(assembly, options);
         }
 
         /// <summary>

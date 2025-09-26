@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Rhino.Geometry;
-using AssemblyChain.Core.Domain.Entities;
-using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Contact;
 using AssemblyChain.Core.Toolkit;
 using AssemblyChain.Core.Toolkit.Mesh;
@@ -113,7 +112,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// 优化的Mesh-Mesh接触检测主入口（使用增强选项）
         /// </summary>
         public static List<ContactData> DetectMeshContactsEnhanced(
-            Part partA, Part partB, EnhancedDetectionOptions options = null)
+            IPartGeometry partA, IPartGeometry partB, EnhancedDetectionOptions options = null)
         {
             options = options?.Sanitize() ?? EnhancedDetectionOptions.CreatePreset(EnhancedDetectionOptions.QualityPreset.Balanced);
             
@@ -203,7 +202,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// 向后兼容的接口（使用原始DetectionOptions）
         /// </summary>
         public static List<ContactData> DetectMeshContacts(
-            Part partA, Part partB, DetectionOptions options)
+            IPartGeometry partA, IPartGeometry partB, DetectionOptions options)
         {
             var enhancedOptions = new EnhancedDetectionOptions
             {
@@ -215,7 +214,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
             return DetectMeshContactsEnhanced(partA, partB, enhancedOptions);
         }
 
-        private static bool ValidateInputs(Part partA, Part partB, PerformanceMonitor monitor, out string error)
+        private static bool ValidateInputs(IPartGeometry partA, IPartGeometry partB, PerformanceMonitor monitor, out string error)
         {
             error = null;
 
@@ -283,7 +282,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// Tight-Inclusion风格的接触检测
         /// </summary>
         private static List<ContactData> DetectContactsWithTightInclusion(
-            Mesh meshA, Mesh meshB, Part partA, Part partB,
+            Mesh meshA, Mesh meshB, IPartGeometry partA, IPartGeometry partB,
             EnhancedDetectionOptions options, PerformanceMonitor monitor)
         {
             var contacts = new List<ContactData>();
@@ -358,7 +357,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// 基于交线的接触检测
         /// </summary>
         private static List<ContactData> DetectContactsWithIntersectionLines(
-            Mesh meshA, Mesh meshB, Part partA, Part partB,
+            Mesh meshA, Mesh meshB, IPartGeometry partA, IPartGeometry partB,
             EnhancedDetectionOptions options, PerformanceMonitor monitor)
         {
             var contacts = new List<ContactData>();
@@ -487,7 +486,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// 简化的重叠检测（最后的后备方法）
         /// </summary>
         private static List<ContactData> DetectContactsWithSimpleOverlap(
-            Mesh meshA, Mesh meshB, Part partA, Part partB,
+            Mesh meshA, Mesh meshB, IPartGeometry partA, IPartGeometry partB,
             EnhancedDetectionOptions options, PerformanceMonitor monitor)
         {
             var contacts = new List<ContactData>();

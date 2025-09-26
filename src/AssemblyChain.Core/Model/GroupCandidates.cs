@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AssemblyChain.Core.Model;
 
-namespace AssemblyChain.Core.Toolkit.Utils
+namespace AssemblyChain.Core.Model
 {
     /// <summary>
     /// Utilities for generating and evaluating group candidates for joint removal.

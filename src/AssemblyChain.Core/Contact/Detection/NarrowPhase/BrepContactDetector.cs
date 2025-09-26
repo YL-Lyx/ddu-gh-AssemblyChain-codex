@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
-using AssemblyChain.Core.Domain.Entities;
-using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Contact;
 using AssemblyChain.Core.Toolkit;
 
@@ -18,7 +17,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// 检测两个Brep部件之间的接触
         /// </summary>
         public static List<ContactData> DetectBrepContacts(
-            Part partA, Part partB, DetectionOptions options)
+            IPartGeometry partA, IPartGeometry partB, DetectionOptions options)
         {
             var contacts = new List<ContactData>();
 

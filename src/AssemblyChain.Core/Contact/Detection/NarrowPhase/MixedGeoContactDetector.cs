@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
-using AssemblyChain.Core.Domain.Entities;
-using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Contact;
 using AssemblyChain.Core.Toolkit;
 
@@ -18,7 +17,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// 检测混合几何类型部件之间的接触
         /// </summary>
         public static List<ContactData> DetectMixedGeoContacts(
-            Part partA, Part partB, DetectionOptions options)
+            IPartGeometry partA, IPartGeometry partB, DetectionOptions options)
         {
             var contacts = new List<ContactData>();
 
@@ -74,7 +73,7 @@ namespace AssemblyChain.Core.Contact.Detection.NarrowPhase
         /// <summary>
         /// 获取部件的处理后Mesh几何
         /// </summary>
-        private static Rhino.Geometry.Mesh GetProcessedMesh(Part part, string label)
+        private static Rhino.Geometry.Mesh GetProcessedMesh(IPartGeometry part, string label)
         {
             // 1. 优先使用现有的Mesh
             if (part.Mesh != null)

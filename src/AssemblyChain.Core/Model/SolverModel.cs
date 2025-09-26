@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Domain.Entities;
 using Rhino.Geometry;
 
@@ -10,7 +11,7 @@ namespace AssemblyChain.Core.Model
     /// Read-only solver model.
     /// Contains sequence planning results with steps, vectors, groups, and metadata.
     /// </summary>
-    public sealed class DgSolverModel
+    public sealed class DgSolverModel : ISolverModel
     {
         public IReadOnlyList<Step> Steps { get; }
         public IReadOnlyList<Vector3d> Vectors { get; }

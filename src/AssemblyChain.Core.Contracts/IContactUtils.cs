@@ -1,7 +1,6 @@
 // 改造目的：隔离接触转换工具，供 Facade 与检测管线使用。
 // 兼容性注意：保留旧 ContactData 工厂方法，外部可通过依赖注入替换实现。
 using System.Collections.Generic;
-using AssemblyChain.Core.Contact;
 
 namespace AssemblyChain.Core.Contracts
 {

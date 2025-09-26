@@ -1,7 +1,4 @@
 using System;
-using AssemblyChain.Core.Contact;
-using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Solver;
 
 namespace AssemblyChain.Core.Contracts
 {
@@ -19,11 +16,11 @@ namespace AssemblyChain.Core.Contracts
         /// <param name="detection">Detection options used when <paramref name="contacts"/> is not provided.</param>
         /// <param name="solver">Solver options configuring the backend.</param>
         public AssemblyPlanRequest(
-            AssemblyModel assembly,
-            ContactModel? contacts,
-            ConstraintModel? constraints,
+            IModelQuery assembly,
+            IContactModel? contacts,
+            IConstraintModel? constraints,
             DetectionOptions? detection,
-            SolverOptions solver)
+            ISolverOptions solver)
         {
             Assembly = assembly ?? throw new ArgumentNullException(nameof(assembly));
             Contacts = contacts;
@@ -35,17 +32,17 @@ namespace AssemblyChain.Core.Contracts
         /// <summary>
         /// Gets the immutable assembly snapshot.
         /// </summary>
-        public AssemblyModel Assembly { get; }
+        public IModelQuery Assembly { get; }
 
         /// <summary>
         /// Gets the pre-computed contact model when available.
         /// </summary>
-        public ContactModel? Contacts { get; }
+        public IContactModel? Contacts { get; }
 
         /// <summary>
         /// Gets the constraint model if provided.
         /// </summary>
-        public ConstraintModel? Constraints { get; }
+        public IConstraintModel? Constraints { get; }
 
         /// <summary>
         /// Gets the detection options used for generating contacts when they are not supplied.
@@ -55,6 +52,6 @@ namespace AssemblyChain.Core.Contracts
         /// <summary>
         /// Gets the solver options controlling the backend.
         /// </summary>
-        public SolverOptions Solver { get; }
+        public ISolverOptions Solver { get; }
     }
 }

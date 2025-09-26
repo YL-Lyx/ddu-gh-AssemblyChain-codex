@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core", "src\AssemblyChain.Core\AssemblyChain.Core.csproj", "{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core.Contracts", "src\AssemblyChain.Core.Contracts\AssemblyChain.Core.Contracts.csproj", "{8919A3CD-658D-4B29-BFB6-1A0B462AC896}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Grasshopper", "src\AssemblyChain.Grasshopper\AssemblyChain.Gh.csproj", "{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core.Tests", "tests\AssemblyChain.Core.Tests\AssemblyChain.Core.Tests.csproj", "{88E24E0E-C3DD-4C1A-A0BE-77DAFF1BFDCC}"
@@ -15,13 +17,17 @@ Global
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+GlobalSection(ProjectConfigurationPlatforms) = postSolution
+{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Release|Any CPU.Build.0 = Release|Any CPU
+{8919A3CD-658D-4B29-BFB6-1A0B462AC896}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+{8919A3CD-658D-4B29-BFB6-1A0B462AC896}.Debug|Any CPU.Build.0 = Debug|Any CPU
+{8919A3CD-658D-4B29-BFB6-1A0B462AC896}.Release|Any CPU.ActiveCfg = Release|Any CPU
+{8919A3CD-658D-4B29-BFB6-1A0B462AC896}.Release|Any CPU.Build.0 = Release|Any CPU
+{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Release|Any CPU.Build.0 = Release|Any CPU
                 {88E24E0E-C3DD-4C1A-A0BE-77DAFF1BFDCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU

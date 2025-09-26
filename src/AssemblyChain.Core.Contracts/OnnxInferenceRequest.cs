@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using AssemblyChain.Core.Model;
 
 namespace AssemblyChain.Core.Contracts
 {
@@ -13,7 +12,7 @@ namespace AssemblyChain.Core.Contracts
         /// </summary>
         /// <param name="assembly">Assembly snapshot to evaluate.</param>
         /// <param name="features">Optional pre-computed features.</param>
-        public OnnxInferenceRequest(AssemblyModel assembly, IReadOnlyDictionary<string, double>? features = null)
+        public OnnxInferenceRequest(IModelQuery assembly, IReadOnlyDictionary<string, double>? features = null)
         {
             Assembly = assembly;
             Features = features;
@@ -22,7 +21,7 @@ namespace AssemblyChain.Core.Contracts
         /// <summary>
         /// Gets the assembly snapshot.
         /// </summary>
-        public AssemblyModel Assembly { get; }
+        public IModelQuery Assembly { get; }
 
         /// <summary>
         /// Gets the optional feature set used to shortcut preprocessing.

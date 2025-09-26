@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using AssemblyChain.Core.Model;
-
-namespace AssemblyChain.Core.Contact
+namespace AssemblyChain.Core.Contracts
 {
     /// <summary>
     /// 接觸檢測選項和配置

@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
-using AssemblyChain.Core.Domain.Entities;
-using AssemblyChain.Core.Model;
+using AssemblyChain.Core.Contracts;
 
 namespace AssemblyChain.Core.Contact.Detection.BroadPhase
 {
@@ -34,7 +33,7 @@ namespace AssemblyChain.Core.Contact.Detection.BroadPhase
         /// <summary>
         /// Gets candidate pairs that might be in collision.
         /// </summary>
-        List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options);
+        List<(int i, int j)> GetCandidatePairs(IReadOnlyList<IPartGeometry> parts, DetectionOptions options);
     }
 
     /// <summary>
@@ -42,7 +41,7 @@ namespace AssemblyChain.Core.Contact.Detection.BroadPhase
     /// </summary>
     public class SweepAndPruneAlgorithm : IBroadPhase
     {
-        public List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options)
+        public List<(int i, int j)> GetCandidatePairs(IReadOnlyList<IPartGeometry> parts, DetectionOptions options)
         {
             return SweepAndPrune.GetCandidatePairs(parts, options);
         }
@@ -53,7 +52,7 @@ namespace AssemblyChain.Core.Contact.Detection.BroadPhase
     /// </summary>
     public class RTreeAlgorithm : IBroadPhase
     {
-        public List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options)
+        public List<(int i, int j)> GetCandidatePairs(IReadOnlyList<IPartGeometry> parts, DetectionOptions options)
         {
             // Placeholder - would implement R-Tree based broad phase
             // For now, return all possible pairs
@@ -252,7 +251,7 @@ namespace AssemblyChain.Core.Contact.Detection.BroadPhase
         /// <summary>
         /// Performs SAP on parts using their bounding boxes.
         /// </summary>
-        public static SapResult ExecuteOnParts(IReadOnlyList<Part> parts, SapOptions options = null)
+        public static SapResult ExecuteOnParts(IReadOnlyList<IPartGeometry> parts, SapOptions options = null)
         {
             var boundingBoxes = parts.Select(p => p?.BoundingBox ?? BoundingBox.Empty).ToList();
             return Execute(boundingBoxes, options);
@@ -261,7 +260,7 @@ namespace AssemblyChain.Core.Contact.Detection.BroadPhase
         /// <summary>
         /// Gets candidate pairs that might be in collision using Sweep and Prune.
         /// </summary>
-        public static List<(int i, int j)> GetCandidatePairs(IReadOnlyList<Part> parts, DetectionOptions options)
+        public static List<(int i, int j)> GetCandidatePairs(IReadOnlyList<IPartGeometry> parts, DetectionOptions options)
         {
             var result = ExecuteOnParts(parts, new SapOptions { Axis = 0 }); // Default to X-axis
             return result.CandidatePairs;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AssemblyChain.Core.Contracts;
 using Rhino.Geometry;
 
 namespace AssemblyChain.Core.Model
@@ -9,7 +10,7 @@ namespace AssemblyChain.Core.Model
     /// Read-only constraint model.
     /// Combines graph and motion constraints into unified rules.
     /// </summary>
-    public sealed class ConstraintModel
+    public sealed class ConstraintModel : IConstraintModel
     {
         public GraphModel GraphModel { get; }
         public MotionModel MotionModel { get; }
