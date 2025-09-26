@@ -13,8 +13,8 @@ This sample demonstrates an end-to-end pipeline using the `AssemblyChainFacade` 
 
 ## Usage
 ```bash
-cd SAMPLES/Case03
- dotnet run
+cd samples/case-03
+dotnet run
 ```
 
 The app writes `output/process.json` and reports schema-validation status. Feel free to inspect the JSON or load it with the Python preview script in `docs/RobotBridge.md`.
