@@ -1,7 +1,6 @@
 using System.Collections.Generic;
-using AssemblyChain.GH.Components;
-using AssemblyChain.GH.Data;
-using AssemblyChain.GH.Stubs;
+using AssemblyChain.Gh.Components.Legacy;
+using AssemblyChain.Gh.Kernel.Legacy;
 using AssemblyChain.IO;
 using FluentAssertions;
 using Xunit;

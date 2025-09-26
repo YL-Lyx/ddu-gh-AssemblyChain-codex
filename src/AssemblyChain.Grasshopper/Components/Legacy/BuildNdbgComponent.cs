@@ -1,12 +1,9 @@
 using AssemblyChain.Constraints;
-using AssemblyChain.GH.Data;
+using AssemblyChain.Gh.Kernel.Legacy;
 using AssemblyChain.Geometry.ContactDetection;
-#if !GRASSHOPPER
-using AssemblyChain.GH.Stubs;
-#endif
 using AssemblyChain.Graphs;
 
-namespace AssemblyChain.GH.Components;
+namespace AssemblyChain.Gh.Components.Legacy;
 
 /// <summary>
 /// Builds the non-directional blocking graph from a set of contacts.

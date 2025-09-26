@@ -1,10 +1,7 @@
-using AssemblyChain.GH.Data;
-#if !GRASSHOPPER
-using AssemblyChain.GH.Stubs;
-#endif
+using AssemblyChain.Gh.Kernel.Legacy;
 using AssemblyChain.Graphs;
 
-namespace AssemblyChain.GH.Components;
+namespace AssemblyChain.Gh.Components.Legacy;
 
 public sealed class BuildAdjacencyComponent : AssemblyChainComponentBase
 {

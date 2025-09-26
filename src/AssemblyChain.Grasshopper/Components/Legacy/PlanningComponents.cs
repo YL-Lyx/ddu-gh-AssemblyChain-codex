@@ -1,13 +1,10 @@
 using System.Collections.Generic;
 using AssemblyChain.Analysis;
 using AssemblyChain.Core.DomainModel;
-using AssemblyChain.GH.Data;
-#if !GRASSHOPPER
-using AssemblyChain.GH.Stubs;
-#endif
+using AssemblyChain.Gh.Kernel.Legacy;
 using AssemblyChain.Planning;
 
-namespace AssemblyChain.GH.Components;
+namespace AssemblyChain.Gh.Components.Legacy;
 
 public sealed class TreeSearchPlanningComponent : AssemblyChainComponentBase
 {

@@ -1,4 +1,4 @@
-namespace AssemblyChain.GH.Components;
+namespace AssemblyChain.Gh.Kernel.Legacy;
 
 public interface IGhDataAccess
 {
