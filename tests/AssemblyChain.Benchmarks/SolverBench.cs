@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using BenchmarkDotNet.Attributes;
 using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
 using AssemblyChain.Core.Model;

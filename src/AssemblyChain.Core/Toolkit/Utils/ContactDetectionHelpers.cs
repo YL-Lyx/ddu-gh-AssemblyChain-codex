@@ -1,6 +1,6 @@
 using System;
 using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 
 namespace AssemblyChain.Core.Toolkit.Utils
 {

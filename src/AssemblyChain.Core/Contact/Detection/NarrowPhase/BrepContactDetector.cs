@@ -4,7 +4,7 @@ using System.Linq;
 using Rhino.Geometry;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Toolkit;
 
 namespace AssemblyChain.Core.Contact.Detection.NarrowPhase

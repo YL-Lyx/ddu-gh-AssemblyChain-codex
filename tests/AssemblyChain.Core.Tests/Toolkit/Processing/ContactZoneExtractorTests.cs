@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Toolkit.Processing;
 using Rhino.Geometry;
 using Xunit;

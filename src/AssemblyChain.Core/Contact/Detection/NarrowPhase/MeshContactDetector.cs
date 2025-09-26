@@ -5,7 +5,7 @@ using System.Text;
 using Rhino.Geometry;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Toolkit;
 using AssemblyChain.Core.Toolkit.Mesh;
 using AssemblyChain.Core.Toolkit.Utils;
