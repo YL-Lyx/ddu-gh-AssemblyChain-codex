@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 using Rhino.Geometry;
 
 namespace AssemblyChain.Core.Toolkit.Processing

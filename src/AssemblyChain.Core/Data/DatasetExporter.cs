@@ -27,6 +27,22 @@ namespace AssemblyChain.Core.Data
             DgSolverModel solverResult,
             DatasetExportOptions options)
         {
+            ValidateArguments(assembly, contacts, solverResult);
+
+            options ??= new DatasetExportOptions();
+            EnsureOutputDirectory(options.OutputDirectory);
+
+            var record = CreateDatasetRecord(assembly, contacts, solverResult, options);
+            WriteDatasetRecord(options.OutputDirectory, assembly.Name, record);
+
+            return new DatasetExportResult(recordCount: 1, outputDirectory: options.OutputDirectory);
+        }
+
+        private static void ValidateArguments(
+            AssemblyModel assembly,
+            ContactModel contacts,
+            DgSolverModel solverResult)
+        {
             if (assembly == null)
             {
                 throw new ArgumentNullException(nameof(assembly));
@@ -41,11 +57,24 @@ namespace AssemblyChain.Core.Data
             {
                 throw new ArgumentNullException(nameof(solverResult));
             }
+        }
 
-            options ??= new DatasetExportOptions();
+        private static void EnsureOutputDirectory(string outputDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                throw new ArgumentException("Output directory must be provided", nameof(outputDirectory));
+            }
 
-            Directory.CreateDirectory(options.OutputDirectory);
+            Directory.CreateDirectory(outputDirectory);
+        }
 
+        private static DatasetRecord CreateDatasetRecord(
+            AssemblyModel assembly,
+            ContactModel contacts,
+            DgSolverModel solverResult,
+            DatasetExportOptions options)
+        {
             var record = new DatasetRecord
             {
                 AssemblyName = assembly.Name,
@@ -59,22 +88,40 @@ namespace AssemblyChain.Core.Data
 
             if (options.IncludeGeometry)
             {
-                record.Geometry = new List<DatasetGeometryRecord>();
-                foreach (var part in assembly.Parts)
-                {
-                    record.Geometry.Add(new DatasetGeometryRecord
-                    {
-                        PartId = part.Id,
-                        PartName = part.Name,
-                        BoundingBox = part.BoundingBox.ToString()
-                    });
-                }
+                record.Geometry = BuildGeometryRecords(assembly);
             }
 
-            var fileName = Path.Combine(options.OutputDirectory, $"{assembly.Name.Replace(' ', '_')}_dataset.json");
-            File.WriteAllText(fileName, JsonConvert.SerializeObject(record, Formatting.Indented));
+            return record;
+        }
 
-            return new DatasetExportResult(recordCount: 1, outputDirectory: options.OutputDirectory);
+        private static List<DatasetGeometryRecord> BuildGeometryRecords(AssemblyModel assembly)
+        {
+            var geometry = new List<DatasetGeometryRecord>(assembly.PartCount);
+
+            foreach (var part in assembly.Parts)
+            {
+                geometry.Add(new DatasetGeometryRecord
+                {
+                    PartId = part.Id,
+                    PartName = part.Name,
+                    BoundingBox = part.BoundingBox.ToString()
+                });
+            }
+
+            return geometry;
+        }
+
+        private static void WriteDatasetRecord(
+            string outputDirectory,
+            string assemblyName,
+            DatasetRecord record)
+        {
+            var fileName = Path.Combine(
+                outputDirectory,
+                $"{assemblyName.Replace(' ', '_')}_dataset.json");
+
+            var payload = JsonConvert.SerializeObject(record, Formatting.Indented);
+            File.WriteAllText(fileName, payload);
         }
 
         private sealed class DatasetRecord

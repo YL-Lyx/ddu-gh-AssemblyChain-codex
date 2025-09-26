@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Domain.Entities;
 using AssemblyChain.Core.Domain.ValueObjects;
 using AssemblyChain.Core.Facade;

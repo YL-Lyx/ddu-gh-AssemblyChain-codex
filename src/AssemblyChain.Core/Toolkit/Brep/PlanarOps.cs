@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Rhino.Geometry;
 using AssemblyChain.Core.Model;
-using AssemblyChain.Core.Contact;
+using AssemblyChain.Core.Contracts;
 using AssemblyChain.Core.Domain.Entities;
 
 namespace AssemblyChain.Core.Toolkit.Brep
