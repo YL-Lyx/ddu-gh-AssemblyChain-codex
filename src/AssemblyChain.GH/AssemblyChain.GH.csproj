@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>AssemblyChain.GH</AssemblyName>
+    <RootNamespace>AssemblyChain.GH</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AssemblyChain.Core/AssemblyChain.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(GrasshopperSdkPath)' != ''">
+    <Reference Include="Grasshopper">
+      <HintPath>$(GrasshopperSdkPath)/Grasshopper.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

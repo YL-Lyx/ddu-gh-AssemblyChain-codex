@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core", "src\A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Grasshopper", "src\AssemblyChain.Grasshopper\AssemblyChain.Gh.csproj", "{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.GH", "src\AssemblyChain.GH\AssemblyChain.GH.csproj", "{4D9B5FF9-60CC-4EB9-A4D7-19F1B8A036E7}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Core.Tests", "tests\AssemblyChain.Core.Tests\AssemblyChain.Core.Tests.csproj", "{88E24E0E-C3DD-4C1A-A0BE-77DAFF1BFDCC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyChain.Benchmarks", "tests\AssemblyChain.Benchmarks\AssemblyChain.Benchmarks.csproj", "{B5E2D0F2-5B6F-4B18-8F93-3A40989B3909}"
@@ -21,9 +23,13 @@ Global
 		{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C8899378-7DD1-4A8A-89A6-9A321C79E7A6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Release|Any CPU.Build.0 = Release|Any CPU
+                {D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {D8899378-7DD1-4A8A-89A6-9A321C79E7A7}.Release|Any CPU.Build.0 = Release|Any CPU
+                {4D9B5FF9-60CC-4EB9-A4D7-19F1B8A036E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {4D9B5FF9-60CC-4EB9-A4D7-19F1B8A036E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {4D9B5FF9-60CC-4EB9-A4D7-19F1B8A036E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {4D9B5FF9-60CC-4EB9-A4D7-19F1B8A036E7}.Release|Any CPU.Build.0 = Release|Any CPU
                 {88E24E0E-C3DD-4C1A-A0BE-77DAFF1BFDCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
                 {88E24E0E-C3DD-4C1A-A0BE-77DAFF1BFDCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
                 {88E24E0E-C3DD-4C1A-A0BE-77DAFF1BFDCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
