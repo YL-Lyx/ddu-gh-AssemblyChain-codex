@@ -17,6 +17,10 @@
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" ExcludeAssets="runtime" />
     <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <DefineConstants>GRASSHOPPER;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
   
   <!-- Use Windows Forms since we target net7.0-windows -->
   <PropertyGroup>
